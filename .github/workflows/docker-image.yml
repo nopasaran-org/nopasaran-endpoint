@@ -6,7 +6,7 @@ on:
       - main
 
 jobs:
-  build-and-push:
+  build-node:
     runs-on: ubuntu-latest
 
     steps:
@@ -24,17 +24,30 @@ jobs:
           docker buildx build . \
             --file Dockerfile.node \
             --tag benilies/nopasaran-node:latest \
-            --platform linux/amd64,linux/arm64 \
+            --platform linux/amd64,linux/arm64,linux/arm/v7,linux/arm/v8,windows/amd64 \
             --push
         env:
           DOCKER_CLI_AARCH64: 1
+
+  build-manager:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Log in to Docker Hub
+        run: echo ${{ secrets.DOCKER_TOKEN }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
 
       - name: Build and push Docker image for benilies/nopasaran-manager
         run: |
           docker buildx build . \
             --file Dockerfile.pool-manager \
             --tag benilies/nopasaran-manager:latest \
-            --platform linux/amd64,linux/arm64 \
+            --platform linux/amd64,linux/arm64,linux/arm/v7,linux/arm/v8,windows/amd64 \
             --push
         env:
           DOCKER_CLI_AARCH64: 1
