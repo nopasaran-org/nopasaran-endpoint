@@ -1,5 +1,6 @@
 *.pem
 _autosummary/
+docker-compose.yml
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
