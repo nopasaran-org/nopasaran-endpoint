@@ -184,5 +184,4 @@ def main():
 
 
 if __name__ == '__main__':
-    logging.critical(os.getenv('X509_CA_OUTPUT_FILENAME'))
     main()
