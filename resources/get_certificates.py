@@ -120,7 +120,7 @@ def retrieve_ca_certificate(certificate_type):
         # Set the truos.path.expanduser(retrieve_ca_config["output_path"]), retrieve_ca_config["output_filename"]sted CA file permissions to be readable only by the owner (600)
         os.chmod(ca_authority_path, 0o600)
         if variable_certificate_suffix == OWN:
-            update_ssh_client_config(ROLE)
+            update_ssh_client_config(POOL_MANAGER if ROLE == NODE else NODE)
         elif  variable_certificate_suffix == OTHER:
             domain_suffix = os.getenv('OTHER_CA_DOMAIN_SUFFIX')
             ca_authority_line = f"@cert-authority *.{certificate_type}.{domain_suffix} {response.content.decode()}\n"
@@ -189,7 +189,7 @@ def update_ssh_client_config(host_type):
     domain_suffix = os.getenv('OWN_CA_DOMAIN_SUFFIX')
     private_key_path = os.getenv('USER_INPUT_PATH')
     private_key_filename = os.getenv('USER_INPUT_FILENAME_PRIVATE')
-    ssh_client_config_path = os.path.expanduser(os.getenv('HOST_SSHD_CONFIG_PATH'))
+    ssh_client_config_path = os.path.expanduser(os.getenv('OWN_CA_SSH_CLIENT_CONFIG_PATH'))
     new_line = f'IdentityFile {os.path.join(os.path.expanduser(private_key_path), private_key_filename)}\n'
 
     # Check if the SSH client configuration file exists, and create it if it doesn't
