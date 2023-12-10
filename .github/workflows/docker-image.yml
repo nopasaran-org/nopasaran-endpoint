@@ -6,34 +6,32 @@ on:
       - main
 
 jobs:
-  build-node:
+  build-and-push:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Build the Docker image for benilies/nopasaran-node
-        run: docker build . --file Dockerfile.node --tag benilies/nopasaran-node:latest
+      - name: Build and push Docker image for benilies/nopasaran-node
+        run: |
+          docker buildx build . \
+            --file Dockerfile.node \
+            --tag benilies/nopasaran-node:latest \
+            --platform linux/amd64,linux/arm64 \
+            --push
+        env:
+          DOCKER_CLI_AARCH64: 1
 
-      - name: Log in to Docker Hub
-        run: echo "${{ secrets.DOCKER_TOKEN }}" | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
-
-      - name: Push Docker image to Docker Hub
-        run: docker push benilies/nopasaran-node:latest
-
-  build-manager:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-
-      - name: Build the Docker image for benilies/nopasaran-manager
-        run: docker build . --file Dockerfile.pool-manager --tag benilies/nopasaran-manager:latest
-
-      - name: Log in to Docker Hub
-        run: echo "${{ secrets.DOCKER_TOKEN }}" | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
-
-      - name: Push Docker image to Docker Hub
-        run: docker push benilies/nopasaran-manager:latest
+      - name: Build and push Docker image for benilies/nopasaran-manager
+        run: |
+          docker buildx build . \
+            --file Dockerfile.pool-manager \
+            --tag benilies/nopasaran-manager:latest \
+            --platform linux/amd64,linux/arm64 \
+            --push
+        env:
+          DOCKER_CLI_AARCH64: 1
