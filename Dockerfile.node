@@ -1,0 +1,75 @@
+# Use a base image, for example, Ubuntu
+FROM ubuntu:latest
+
+# Set environment variables if needed (e.g., for non-interactive installation)
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Add Docker's official GPG key:
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    curl \
+    gnupg
+RUN install -m 0755 -d /etc/apt/keyrings
+RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+RUN chmod a+r /etc/apt/keyrings/docker.gpg
+
+# Add the repository to Apt sources:
+RUN echo \
+  "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | \
+  tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+# Update and upgrade packages, and install any necessary dependencies
+RUN apt-get update && apt-get upgrade -y && apt-get install -y \
+    software-properties-common \
+    openssh-client \
+    openssh-server \
+    python3 \
+    python3-pip \
+    nano \
+    rsync \
+    docker-ce \
+    docker-ce-cli \
+    containerd.io
+
+# Create symbolic links to make python3 accessible through python command
+RUN ln -s /usr/bin/python3 /usr/bin/python
+
+# Create a directory to copy your "resources" folder into
+WORKDIR /app
+
+# Copy the "resources" folder into the container
+COPY resources /app/resources
+
+# Install Python packages
+RUN pip install -r resources/requirements.txt
+
+# Create worker and master users with random passwords of length 20
+RUN useradd -m -s /bin/bash node && \
+    useradd -m -s /bin/bash pool-manager && \
+    echo "node:$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 20 ; echo '')" | chpasswd && \
+    echo "pool-manager:$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 20 ; echo '')" | chpasswd
+
+# Create a directory for SSH host keys
+RUN mkdir /var/run/sshd
+
+# Set root password (change this for production use)
+RUN echo 'root:your_password' | chpasswd
+
+# Permit root login over SSH (for demonstration purposes; consider other authentication methods for production)
+RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
+
+# Change SSH port to 1963 in sshd_config
+RUN sed -i 's/#Port 22/Port 1963/' /etc/ssh/sshd_config
+
+# Add the pool-manager user to the docker group
+RUN usermod -aG docker pool-manager
+
+# Copy the scripts into the container
+COPY entry.sh /app/entry.sh
+
+# Make the scripts executable
+RUN chmod +x /app/entry.sh
+
+# Run the entry.sh script when the container starts
+CMD ["/app/entry.sh"]

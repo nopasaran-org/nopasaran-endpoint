@@ -1,0 +1,21 @@
+---
+- name: Stop and Delete Docker Containers
+  hosts: nopasaran_nodes
+  tasks:
+    - name: List Docker Containers
+      command: docker ps -a --filter "ancestor=benilies/nopasaran" --format "{{ '{{' }}.Names{{ '}}' }}"
+      register: docker_containers
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Stop Docker Containers
+      command: docker stop "{{ item }}"
+      with_items: "{{ docker_containers.stdout_lines }}"
+      ignore_errors: yes
+      when: item is defined
+
+    - name: Delete Docker Containers
+      command: docker rm "{{ item }}"
+      with_items: "{{ docker_containers.stdout_lines }}"
+      ignore_errors: yes
+      when: item is defined

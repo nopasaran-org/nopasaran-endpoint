@@ -1,0 +1,44 @@
+---
+- name: Execute Python script inside Docker container
+  hosts: nopasaran_nodes
+
+  tasks:
+    - name: Generate a random folder name
+      set_fact:
+        random_folder_name: "{{ 'nopasaran_' + ansible_date_time.iso8601_micro + '_' + lookup('password', '/dev/null chars=ascii_letters,digits length=12') }}"
+
+    - name: Copy the entire test-case folder to remote server
+      synchronize:
+        src: /ansible/test-case/
+        dest: "/tmp/{{ random_folder_name }}"
+        recursive: yes
+
+    - name: Get the container IDs
+      shell: docker ps -q -f name={{ item }}
+      register: container_id
+      ignore_errors: yes
+      with_items:
+        - nopasaran-1
+        - nopasaran-2
+
+    - name: Copy test-case folder into the containers
+      command: docker cp "/tmp/{{ random_folder_name }}"/ {{ item.stdout }}:/tmp/
+      when: item.stdout
+      with_items: "{{ container_id.results }}"
+
+    - name: Execute nopasaran code inside the containers
+      command: docker exec -w "/tmp/{{ random_folder_name }}" {{ item.stdout }} nopasaran WORKER -s /tmp/{{ random_folder_name }}/scenario.json -ll info
+      when: item.stdout
+      with_items: "{{ container_id.results }}"
+
+    - name: Retrieve logs from the containers
+      command: docker cp {{ item.stdout }}:/tmp/{{ random_folder_name }}/conf.log /tmp/{{ random_folder_name }}/conf_{{ item.stdout }}.log
+      when: item.stdout
+      with_items: "{{ container_id.results }}"
+
+    - name: Copy logs to local machine
+      fetch:
+        src: "/tmp/{{ random_folder_name }}/conf_{{ item.stdout }}.log"
+        dest: /results/
+      when: item.stdout
+      with_items: "{{ container_id.results }}"

@@ -1,0 +1,51 @@
+# Use a base image with Ansible pre-installed (e.g., Ubuntu)
+FROM ubuntu:latest
+
+# Set environment variables if needed (e.g., for non-interactive installation)
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Update and upgrade packages, and install any necessary dependencies
+RUN apt-get update && apt-get upgrade -y && apt-get install -y openssh-client openssh-server curl python3-pip nano ansible rsync net-tools
+
+# Create symbolic links to make python3 accessible through python command
+RUN ln -s /usr/bin/python3 /usr/bin/python
+
+# Create a directory to copy your "resources" folder into
+WORKDIR /app
+
+# Copy the "resources" folder into the container
+COPY resources /app/resources
+
+# Install Python packages
+RUN pip install -r resources/requirements.txt
+
+# Create worker and master users with random passwords of length 20
+RUN useradd -m -s /bin/bash node && \
+    useradd -m -s /bin/bash pool-manager && \
+    echo "node:$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 20 ; echo '')" | chpasswd && \
+    echo "pool-manager:$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 20 ; echo '')" | chpasswd
+
+# Create a directory for SSH host keys
+RUN mkdir /var/run/sshd
+
+# Set root password (change this for production use)
+RUN echo 'root:your_password' | chpasswd
+
+# Permit root login over SSH (for demonstration purposes; consider other authentication methods for production)
+RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
+
+# Change SSH port to 1963 in sshd_config
+RUN sed -i 's/#Port 22/Port 1963/' /etc/ssh/sshd_config
+
+# Copy your the scripts into the container
+COPY entry.sh /app/entry.sh
+
+# Copy your Ansible playbook and inventory files into the container
+COPY /pool-manager/playbooks /ansible/
+COPY /pool-manager/inventory.ini /ansible/
+
+# Make the scripts executable
+RUN chmod +x /app/entry.sh
+
+# By default, sleep to keep the container running for manual interaction
+CMD ["/app/entry.sh"]
