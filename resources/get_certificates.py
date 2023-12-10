@@ -17,11 +17,11 @@ from utils import get_api_base_url
 # Load the .env file, but don't override existing environment variables
 dotenv.load_dotenv('/app/resources/config.env', override=False)
 
-USER = "user"
-HOST = "host"
-X509 = "x509"
-OWN = "own"
-OTHER = "other"
+USER = "USER"
+HOST = "HOST"
+X509 = "X509"
+OWN = "OWN"
+OTHER = "OTHER"
 NODE = "node"
 POOL_MANAGER = "pool-manager"
 
@@ -60,9 +60,9 @@ AUTHORIZATION_TOKEN = os.environ.get("AUTHORIZATION_TOKEN")
 ROLE = os.environ.get("ROLE")
 
 def generate_new_ssh_key(certificate_type, key_size=4096, exponent=65537):
-    input_path = os.getenv(f'{str.upper(certificate_type)}_INPUT_PATH')  
-    input_filename_private = os.getenv(f'{str.upper(certificate_type)}_INPUT_FILENAME_PRIVATE')
-    input_filename_public = os.getenv(f'{str.upper(certificate_type)}_INPUT_FILENAME_PUBLIC')
+    input_path = os.getenv(f'{certificate_type}_INPUT_PATH')  
+    input_filename_private = os.getenv(f'{certificate_type}_INPUT_FILENAME_PRIVATE')
+    input_filename_public = os.getenv(f'{certificate_type}_INPUT_FILENAME_PUBLIC')
 
     # Generate an RSA private key for SSH
     private_key = rsa.generate_private_key(
@@ -96,9 +96,9 @@ def generate_new_ssh_key(certificate_type, key_size=4096, exponent=65537):
 def retrieve_ca_certificate(certificate_type):
     if ROLE in [NODE, POOL_MANAGER]:
             if certificate_type == ROLE:
-                variable_certificate_suffix = 'OWN'
+                variable_certificate_suffix = OWN
             else:
-                variable_certificate_suffix = 'OTHER'
+                variable_certificate_suffix = OTHER
     else:
         raise ValueError("Invalid role specified. Role must be 'node' or 'pool-manager'.")
     
@@ -119,14 +119,13 @@ def retrieve_ca_certificate(certificate_type):
         ca_authority_path = os.path.join(os.getenv(f'{variable_certificate_suffix}_CA_OUTPUT_PATH'), os.getenv(f'{variable_certificate_suffix}_CA_OUTPUT_FILENAME'))
         # Set the truos.path.expanduser(retrieve_ca_config["output_path"]), retrieve_ca_config["output_filename"]sted CA file permissions to be readable only by the owner (600)
         os.chmod(ca_authority_path, 0o600)
-
         if variable_certificate_suffix == OWN:
-            update_ssh_client_config(POOL_MANAGER if ROLE == NODE else NODE)
+            update_ssh_client_config(ROLE)
         elif  variable_certificate_suffix == OTHER:
             domain_suffix = os.getenv('OTHER_CA_DOMAIN_SUFFIX')
             ca_authority_line = f"@cert-authority *.{certificate_type}.{domain_suffix} {response.content.decode()}\n"
             save_response_to_file(ca_authority_line.encode(), os.getenv('OTHER_CA_KNOWN_HOST_PATH'), os.getenv('OTHER_CA_KNOWN_HOST_FILENAME'))
-            known_hosts_path = os.path.join(os.path.expanduser(os.getenv('OTHER_CA_KNOWN_HOST_PATH'), os.getenv('OTHER_CA_KNOWN_HOST_FILENAME')))
+            known_hosts_path = os.path.join(os.path.expanduser(os.getenv('OTHER_CA_KNOWN_HOST_PATH')), os.getenv('OTHER_CA_KNOWN_HOST_FILENAME'))
             # Set the known_hosts file to be readable only by the owner (600)
             os.chmod(known_hosts_path, 0o600)
     else:
@@ -154,13 +153,13 @@ def retrieve_ssh_certificate(certificate_type):
         raise ValueError("Invalid role specified. Role must be 'node' or 'pool_manager'.")
 
     # Check if the 'generate' field is set to 1 to generate a new key
-    if os.getenv(f'{str.upper(certificate_type)}_GENERATE') == "1":
+    if os.getenv(f'{certificate_type}_GENERATE') == "1":
         # Generate a new SSH key and set it in the headers
         generate_new_ssh_key(certificate_type)
 
     # Load the SSH key from the specified file
-    input_path = os.getenv(f'{str.upper(certificate_type)}_INPUT_PATH')
-    input_filename = os.getenv(f'{str.upper(certificate_type)}_INPUT_FILENAME_PUBLIC')
+    input_path = os.getenv(f'{certificate_type}_INPUT_PATH')
+    input_filename = os.getenv(f'{certificate_type}_INPUT_FILENAME_PUBLIC')
 
     if input_filename:
         existing_ssh_key = load_existing_file(input_path, input_filename)
@@ -176,7 +175,7 @@ def retrieve_ssh_certificate(certificate_type):
         # Save the response content to the specified output path
         content = json_loader.loads(response.content.decode()).get("certificate").encode()
         
-        save_response_to_file(content, os.getenv(f'{str.upper(certificate_type)}_OUTPUT_PATH'), os.getenv(f'{str.upper(certificate_type)}_OUTPUT_FILENAME'))
+        save_response_to_file(content, os.getenv(f'{certificate_type}_OUTPUT_PATH'), os.getenv(f'{certificate_type}_OUTPUT_FILENAME'))
         if certificate_type == USER:
             update_sshd_config_user_certificate()
         else:
