@@ -45,7 +45,7 @@ jobs:
       - name: Build and push Docker image for benilies/nopasaran-manager
         run: |
           docker buildx build . \
-            --file Dockerfile.pool-manager \
+            --file Dockerfile.manager \
             --tag benilies/nopasaran-manager:latest \
             --platform linux/amd64,linux/arm64,linux/arm \
             --push

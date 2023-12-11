@@ -21,9 +21,9 @@ RUN pip install -r resources/requirements.txt
 
 # Create worker and master users with random passwords of length 20
 RUN useradd -m -s /bin/bash node && \
-    useradd -m -s /bin/bash pool-manager && \
+    useradd -m -s /bin/bash manager && \
     echo "node:$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 20 ; echo '')" | chpasswd && \
-    echo "pool-manager:$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 20 ; echo '')" | chpasswd
+    echo "manager:$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 20 ; echo '')" | chpasswd
 
 # Create a directory for SSH host keys
 RUN mkdir /var/run/sshd
@@ -41,8 +41,8 @@ RUN sed -i 's/#Port 22/Port 1963/' /etc/ssh/sshd_config
 COPY entry.sh /app/entry.sh
 
 # Copy your Ansible playbook and inventory files into the container
-COPY /pool-manager/playbooks /ansible/
-COPY /pool-manager/inventory.ini /ansible/
+COPY /manager/playbooks /ansible/
+COPY /manager/inventory.ini /ansible/
 
 # Make the scripts executable
 RUN chmod +x /app/entry.sh

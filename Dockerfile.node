@@ -46,9 +46,9 @@ RUN pip install -r resources/requirements.txt
 
 # Create worker and master users with random passwords of length 20
 RUN useradd -m -s /bin/bash node && \
-    useradd -m -s /bin/bash pool-manager && \
+    useradd -m -s /bin/bash manager && \
     echo "node:$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 20 ; echo '')" | chpasswd && \
-    echo "pool-manager:$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 20 ; echo '')" | chpasswd
+    echo "manager:$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 20 ; echo '')" | chpasswd
 
 # Create a directory for SSH host keys
 RUN mkdir /var/run/sshd
@@ -62,8 +62,8 @@ RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/
 # Change SSH port to 1963 in sshd_config
 RUN sed -i 's/#Port 22/Port 1963/' /etc/ssh/sshd_config
 
-# Add the pool-manager user to the docker group
-RUN usermod -aG docker pool-manager
+# Add the manager user to the docker group
+RUN usermod -aG docker manager
 
 # Copy the scripts into the container
 COPY entry.sh /app/entry.sh
