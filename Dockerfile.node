@@ -30,7 +30,8 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     rsync \
     docker-ce \
     docker-ce-cli \
-    containerd.io
+    containerd.io \
+    rsyslog
 
 # Create symbolic links to make python3 accessible through python command
 RUN ln -s /usr/bin/python3 /usr/bin/python

@@ -2,3 +2,4 @@ requests
 cryptography
 fastapi_websocket_rpc
 python-dotenv
+psutil
