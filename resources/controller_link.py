@@ -1,4 +1,5 @@
 import os
+import random
 import subprocess
 import logging
 import subprocess
@@ -73,10 +74,13 @@ class ClientRPC(RpcUtilityMethods):
             return -1, None, str(e)
 
     async def create_ssh_tunnel(self, ssh_node_hostname="", ssh_manager_hostname="", ssh_port="", ssh_username=""):
+        # Generate a random port between 20000 and 30000
+        random_port = random.randint(20000, 30000)
+
         # Construct the SSH tunnel command
         tunnel_command = [
             "ssh",
-            "-R", f"{ssh_node_hostname}:{1957}:localhost:{1963}",
+            "-R", f"{ssh_node_hostname}:{random_port}:localhost:{1963}",
             "-N",  # No command execution
             "-p", ssh_port,  # SSH port
             "-l", ssh_username,  # SSH username

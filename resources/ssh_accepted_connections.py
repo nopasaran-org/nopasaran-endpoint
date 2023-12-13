@@ -91,7 +91,7 @@ def main():
                         # Get and print listening port for the child process
                         listening_port = get_listening_port_for_process(child['pid'])
                         if listening_port:
-                            host_port_list.append((hostname, listening_port))
+                            host_port_list.append((hostname, 1963))
         
         write_host_file(host_port_list)
         
