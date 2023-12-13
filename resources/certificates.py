@@ -1,4 +1,3 @@
-import argparse
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import datetime
 import os
@@ -337,23 +336,16 @@ def update_sshd_config_host_certificate():
 
     logging.info(f'HostCertificate line updated or added to {sshd_config_path}')
 
-def main():
-    parser = argparse.ArgumentParser(description="Retrieve certificates using a configuration file.")
-    parser.add_argument("--log-file", default="system.log", help="Path to the log file")
-    parser.add_argument("--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
-                        help="Set the logging level")
-    parser.add_argument("--num-threads", type=int, default=4, help="Number of threads for parallel execution")
-    args = parser.parse_args()
-
+def get_certificates():
     # Set the logging level
-    logging_level = getattr(logging, args.log_level)
+    logging_level = getattr(logging, "INFO")
     logger.setLevel(logging_level)
 
     # Create a formatter to include timestamps
     formatter = logging.Formatter('%(asctime)s - %(levelname)s: %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 
     # Create a file handler for the log file
-    file_handler = logging.FileHandler(args.log_file)
+    file_handler = logging.FileHandler("system.log")
     file_handler.setFormatter(formatter)
     logger.addHandler(file_handler)
 
@@ -362,7 +354,7 @@ def main():
 
     # List of tasks for certificate retrieval
     tasks = []
-    with ThreadPoolExecutor(max_workers=args.num_threads) as executor:
+    with ThreadPoolExecutor(max_workers=4) as executor:
         # Example usage to retrieve a user certificate
         tasks.append(executor.submit(retrieve_ssh_certificate, USER))
 
@@ -375,6 +367,7 @@ def main():
         # Example usage to retrieve a manager CA certificate
         tasks.append(executor.submit(retrieve_ca_certificate, MANAGER))
 
+    success = True
 
     # Handle errors and exceptions
     for task in as_completed(tasks):
@@ -382,6 +375,6 @@ def main():
             task.result()
         except Exception as e:
             logger.error(f"An error occurred: {str(e)}")
+            success = False
 
-if __name__ == "__main__":
-    main()
+    return success

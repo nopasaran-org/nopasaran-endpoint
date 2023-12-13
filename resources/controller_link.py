@@ -9,6 +9,7 @@ import socket
 from fastapi_websocket_rpc import WebSocketRpcClient, logger
 from fastapi_websocket_rpc.rpc_methods import RpcUtilityMethods
 import dotenv
+from certificates import get_certificates
 
 # Load the .env file, but don't override existing environment variables
 dotenv.load_dotenv('/app/resources/config.env', override=False)
@@ -138,7 +139,20 @@ class ClientRPC(RpcUtilityMethods):
             job_pid = None
             asyncio.create_task(self.channel.other.notify_current_job(pid=job_pid))
             return error_message
-        
+
+    async def generate_certificates_and_restart(self):
+        try:
+            # Call the functions to generate certificates
+            result = get_certificates()
+
+            # Restart the machine
+            restart_command = ["service", "ssh", "restart"]
+            subprocess.run(restart_command, check=True)
+
+            return result
+        except Exception as e:
+            return str(e)
+
 def get_local_ip_for_target(target_ip):
     try:
         # Create a socket object with SOCK_DGRAM (UDP) type.
