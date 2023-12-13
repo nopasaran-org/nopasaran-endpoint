@@ -3,7 +3,7 @@ import psutil
 import time
 
 # Define the output file path
-output_file = "/manager/inventory.ini"
+output_file = "/ansible/inventory.ini"
 
 def extract_connections(auth_log_path):
     accepted_publickey_pattern = re.compile(r'Accepted publickey for (\w+) from ([\d.]+) port \d+ ssh2: RSA-CERT .+ ID (\S+)')
