@@ -120,11 +120,9 @@ class ClientRPC(RpcUtilityMethods):
             return f"- {error_message}"
 
     async def restart(self):
-        # Construct the SSH tunnel command
         restart_command = ["service", "ssh", "restart"]
 
         try:
-            # Start the SSH tunnel as a background process
             subprocess.Popen(
                 restart_command,
                 stdout=subprocess.PIPE,
@@ -134,14 +132,13 @@ class ClientRPC(RpcUtilityMethods):
             
             return f"+ {True}"
         except Exception as e:
-            # Handle any errors that occur during SSH tunnel creation
-            error_message = f"Error creating SSH tunnel: {e}"
+            error_message = f"Error restarting the SSH daemon: {e}"
             return f"- {error_message}"
         
     async def free(self):
         try:
             # Use subprocess to execute the 'kill' command with the PID
-            subprocess.run(["kill", self.process.pid], check=True)
+            subprocess.run(["kill", str(self.process.pid)], check=True)
             self.process = None
             return f"+ {None}"
         except Exception as e:
