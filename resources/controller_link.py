@@ -6,6 +6,8 @@ import subprocess
 import sys
 import asyncio
 import socket
+import threading
+import time
 from fastapi_websocket_rpc import WebSocketRpcClient, logger
 from fastapi_websocket_rpc.rpc_methods import RpcUtilityMethods
 import dotenv
@@ -41,8 +43,6 @@ if missing_vars:
 # All required environment variables are correctly loaded
 logging.info("All required environment variables are correctly loaded.")
 
-print(os.getenv('SERVER_HOST'))
-
 # Initialize default host and port values
 host = os.getenv('SERVER_HOST')
 port = int(os.getenv('SERVER_PORT'))
@@ -53,26 +53,31 @@ ENDPOINT_NAME = os.environ.get("ENDPOINT_NAME")
 AUTHORIZATION_TOKEN = os.environ.get("AUTHORIZATION_TOKEN")
 ROLE = os.environ.get("ROLE")
 
-job_pid = None
 
 # Methods to expose to the clients
 class ClientRPC(RpcUtilityMethods):
     def __init__(self):
         super().__init__()
+        self.process = None
+        self.is_running = False
         self.can_exit = asyncio.Event()
-        
+
+    async def check_tunnel_process_async(self):
+        while True:
+            if self.is_running and self.process:
+                return_code = self.process.poll()
+                if return_code is not None:
+                    self.is_running = False
+                    asyncio.create_task(self.channel.other.notify_free_status())
+                    logging.error(f"SSH tunnel process (PID {self.process.pid}) has exited with return code {return_code}")
+                    # You can take appropriate action here, such as restarting the tunnel or handling the error.
+
+            await asyncio.sleep(1)
 
     async def allow_exit(self):
         async def allow():
             self.can_exit.set()
         asyncio.create_task(allow())
-
-    async def execute_command(self, command=""):
-        try:
-            result = subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-            return result.returncode, result.stdout, result.stderr
-        except Exception as e:
-            return -1, None, str(e)
 
     async def create_ssh_tunnel(self, ssh_node_hostname="", ssh_manager_hostname="", ssh_port="", ssh_username=""):
         # Generate a random port between 20000 and 30000
@@ -90,23 +95,30 @@ class ClientRPC(RpcUtilityMethods):
 
         try:
             # Start the SSH tunnel as a background process
-            process = subprocess.Popen(
+            self.process = subprocess.Popen(
                 tunnel_command,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                shell=False
             )
-            
-            job_pid = process.pid
 
-            asyncio.create_task(self.channel.other.notify_current_job(pid=job_pid))
-            return True
+            self.is_running = True
+
+
+            # Create a separate thread to run the tunnel process checker
+            def tunnel_checker_thread():
+                asyncio.run(self.check_tunnel_process_async())
+
+            tunnel_checker_thread = threading.Thread(target=tunnel_checker_thread)
+            tunnel_checker_thread.daemon = True  # Allow the thread to exit when the main program exits
+            tunnel_checker_thread.start()
+
+            return f"+ {ssh_manager_hostname}"
         except Exception as e:
             # Handle any errors that occur during SSH tunnel creation
             error_message = f"Error creating SSH tunnel: {e}"
-            asyncio.create_task(self.channel.other.notify_current_job(pid=job_pid))
-            return None, error_message
-        
+            return f"- {error_message}"
+
     async def restart(self):
         # Construct the SSH tunnel command
         restart_command = ["service", "ssh", "restart"]
@@ -120,25 +132,22 @@ class ClientRPC(RpcUtilityMethods):
                 text=True
             )
             
-            return True
+            return f"+ {True}"
         except Exception as e:
             # Handle any errors that occur during SSH tunnel creation
             error_message = f"Error creating SSH tunnel: {e}"
-            return None, error_message
+            return f"- {error_message}"
         
     async def free(self):
         try:
             # Use subprocess to execute the 'kill' command with the PID
-            subprocess.run(["kill", str(job_pid)], check=True)
-            job_pid = None
-            asyncio.create_task(self.channel.other.notify_current_job(pid=job_pid))
-            return True
+            subprocess.run(["kill", self.process.pid], check=True)
+            self.process = None
+            return f"+ {None}"
         except Exception as e:
             # Handle any errors that occur when trying to kill the process
             error_message = f"Error killing SSH tunnel process: {e}"
-            job_pid = None
-            asyncio.create_task(self.channel.other.notify_current_job(pid=job_pid))
-            return error_message
+            return f"- {error_message}"
 
     async def generate_certificates_and_restart(self):
         try:
@@ -149,9 +158,9 @@ class ClientRPC(RpcUtilityMethods):
             restart_command = ["service", "ssh", "restart"]
             subprocess.run(restart_command, check=True)
 
-            return result
+            return f"+ {result}"
         except Exception as e:
-            return str(e)
+            return f"- {str(e)}"
 
 def get_local_ip_for_target(target_ip):
     try:
@@ -176,7 +185,6 @@ def get_local_ip_for_target(target_ip):
 async def on_connect(channel):
     client_private_ip = get_local_ip_for_target(host)
     asyncio.create_task(channel.other.register_private_ip(client_private_ip=client_private_ip))
-    asyncio.create_task(channel.other.notify_current_job(pid=job_pid))
 
 async def run_client(uri):
     while True:
