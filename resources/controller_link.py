@@ -7,7 +7,6 @@ import sys
 import asyncio
 import socket
 import threading
-import time
 from fastapi_websocket_rpc import WebSocketRpcClient, logger
 from fastapi_websocket_rpc.rpc_methods import RpcUtilityMethods
 import dotenv
@@ -54,6 +53,8 @@ ENDPOINT_NAME = os.environ.get("ENDPOINT_NAME")
 AUTHORIZATION_TOKEN = os.environ.get("AUTHORIZATION_TOKEN")
 ROLE = os.environ.get("ROLE")
 
+# Define the output file path
+INVENTORY_PATH = os.path.expanduser(os.getenv("INVENTORY_PATH"))
 
 # Methods to expose to the clients
 class ClientRPC(RpcUtilityMethods):
@@ -74,6 +75,16 @@ class ClientRPC(RpcUtilityMethods):
                     # You can take appropriate action here, such as restarting the tunnel or handling the error.
 
             await asyncio.sleep(1)
+
+    async def check_inventory_changes(self):
+        current_entries = []
+        while True:
+            new_entries = get_changes(current_entries)
+            if new_entries is not None:
+                current_entries = new_entries
+                asyncio.create_task(self.channel.other.notify_connected_nodes(connected_nodes=current_entries))
+
+            await asyncio.sleep(1)  # Check every 1 second
 
     async def allow_exit(self):
         async def allow():
@@ -187,19 +198,63 @@ def get_local_ip_for_target(target_ip):
         print(f"Error: {e}")
         return None
 
+# Initialize a threading event flag
+inventory_update_thread_exit = threading.Event()
+
+# Initialize a set to store the previous entries
+previous_entries = set()
+
+def load_entries(file_path):
+    entries = []
+    try:
+        with open(file_path, 'r') as file:
+            for line in file:
+                # Assuming the entries are in the format "[nopasaran_nodes] hostname"
+                if line.strip().startswith("[nopasaran_nodes]"):
+                    continue
+                entries.append(line.split()[0])
+    except FileNotFoundError:
+        pass  # Handle the case where the file doesn't exist
+    return entries
+
+def get_changes(previous_entries):
+    current_entries = load_entries(INVENTORY_PATH)
+    if current_entries != previous_entries:
+        previous_entries = current_entries
+        return current_entries
+    
+    return None
 
 async def on_connect(channel):
+    inventory_update_thread_exit.clear()
     client_private_ip = get_local_ip_for_target(host)
-    asyncio.create_task(channel.other.register_private_ip(client_private_ip=client_private_ip))
+    await asyncio.create_task(channel.other.register_private_ip(client_private_ip=client_private_ip))
+
+    # Create a separate thread to check the difference in inventory
+    def inventory_update_checker(channel):
+        while not inventory_update_thread_exit.is_set():
+            asyncio.run(channel.methods.check_inventory_changes())
+            # Sleep for a short duration before checking again
+            asyncio.sleep(1)
+
+    inventory_update_thread = threading.Thread(target=inventory_update_checker, args=(channel,))
+    inventory_update_thread.daemon = True  # Allow the thread to exit when the main program exits
+    inventory_update_thread.start()
 
 async def run_client(uri):
+    global previous_entries
     while True:
         try:
             async with WebSocketRpcClient(uri, ClientRPC(), on_connect=[on_connect]) as client:
                 task1 = asyncio.create_task(client.channel.methods.can_exit.wait())
                 task2 = asyncio.create_task(client.channel._closed.wait())
 
-                await asyncio.wait([task1, task2], return_when=asyncio.FIRST_COMPLETED)
+                # Wait for either the can_exit event or the WebSocket connection to close
+                done, _ = await asyncio.wait([task1, task2], return_when=asyncio.FIRST_COMPLETED)
+
+                # Set the inventory update thread exit flag when the WebSocket connection is closed
+                if task2 in done:
+                    inventory_update_thread_exit.set()
         except Exception as e:
             print(f"Error: {e}")
             await asyncio.sleep(3)  # Retry every 3 seconds

@@ -1,9 +1,14 @@
+import os
 import re
 import psutil
 import time
+import dotenv
+
+# Load the .env file, but don't override existing environment variables
+dotenv.load_dotenv('/app/resources/config.env', override=False)
 
 # Define the output file path
-output_file = "/ansible/inventory.ini"
+INVENTORY_PATH = os.path.expanduser(os.getenv("INVENTORY_PATH"))
 
 def extract_connections(auth_log_path):
     accepted_publickey_pattern = re.compile(r'Accepted publickey for (\w+) from ([\d.]+) port \d+ ssh2: RSA-CERT .+ ID (\S+)')
@@ -64,7 +69,7 @@ def get_listening_port_for_process(pid):
 
 def write_host_file(host_port_list):
     # Write the (hostname, port) pairs to the output file in the desired format
-    with open(output_file, 'w') as file:
+    with open(INVENTORY_PATH, 'w') as file:
         file.write("[nopasaran_nodes]\n")
         for hostname, port in host_port_list:
             file.write(f"{hostname} ansible_port={port} ansible_user=manager\n")
