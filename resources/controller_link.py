@@ -230,16 +230,17 @@ async def on_connect(channel):
     client_private_ip = get_local_ip_for_target(host)
     await asyncio.create_task(channel.other.register_private_ip(client_private_ip=client_private_ip))
 
-    # Create a separate thread to check the difference in inventory
-    def inventory_update_checker(channel):
-        while not inventory_update_thread_exit.is_set():
-            asyncio.run(channel.methods.check_inventory_changes())
-            # Sleep for a short duration before checking again
-            asyncio.sleep(1)
+    if ROLE == "manager":
+        # Create a separate thread to check the difference in inventory
+        def inventory_update_checker(channel):
+            while not inventory_update_thread_exit.is_set():
+                asyncio.run(channel.methods.check_inventory_changes())
+                # Sleep for a short duration before checking again
+                asyncio.sleep(1)
 
-    inventory_update_thread = threading.Thread(target=inventory_update_checker, args=(channel,))
-    inventory_update_thread.daemon = True  # Allow the thread to exit when the main program exits
-    inventory_update_thread.start()
+        inventory_update_thread = threading.Thread(target=inventory_update_checker, args=(channel,))
+        inventory_update_thread.daemon = True  # Allow the thread to exit when the main program exits
+        inventory_update_thread.start()
 
 async def run_client(uri):
     global previous_entries
