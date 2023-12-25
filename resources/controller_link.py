@@ -178,6 +178,44 @@ class ClientRPC(RpcUtilityMethods):
             return f"+ {certificates}"
         except Exception as e:
             return f"- {e}"
+    async def execute_create_containers_playbook(self):
+        try:
+            # Execute the Ansible playbook for creating containers
+            result = subprocess.run(
+                ["ansible-playbook", "-i", "/ansible/inventory.ini", "/ansible/create_containers.yml"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+            return f"+ {result.stdout}"
+        except Exception as e:
+            return f"- {str(e)}"
+
+    async def execute_delete_containers_playbook(self):
+        try:
+            # Execute the Ansible playbook for deleting containers
+            result = subprocess.run(
+                ["ansible-playbook", "-i", "/ansible/inventory.ini", "/ansible/delete_containers.yml"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+            return f"+ {result.stdout}"
+        except Exception as e:
+            return f"- {str(e)}"
+
+    async def execute_remote_scenario_playbook(self):
+        try:
+            # Execute the Ansible playbook for remote scenario
+            result = subprocess.run(
+                ["ansible-playbook", "-i", "/ansible/inventory.ini", "/ansible/remote_scenario.yml"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+            return f"+ {result.stdout}"
+        except Exception as e:
+            return f"- {str(e)}"
 
 def get_local_ip_for_target(target_ip):
     try:
