@@ -178,6 +178,7 @@ class ClientRPC(RpcUtilityMethods):
             return f"+ {certificates}"
         except Exception as e:
             return f"- {e}"
+        
     async def execute_create_containers_playbook(self):
         try:
             # Execute the Ansible playbook for creating containers
