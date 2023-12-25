@@ -57,9 +57,6 @@ RUN mkdir /var/run/sshd
 # Set root password (change this for production use)
 RUN echo 'root:your_password' | chpasswd
 
-# Permit root login over SSH (for demonstration purposes; consider other authentication methods for production)
-RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
-
 # Change SSH port to 1963 in sshd_config
 RUN sed -i 's/#Port 22/Port 1963/' /etc/ssh/sshd_config
 
