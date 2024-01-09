@@ -7,11 +7,16 @@
       set_fact:
         random_folder_name: "{{ 'nopasaran_' + ansible_date_time.iso8601_micro + '_' + lookup('password', '/dev/null chars=ascii_letters,digits length=12') }}"
 
-    - name: Copy the entire test-case folder to remote server
-      synchronize:
-        src: /ansible/test-case/
+    - name: Create the full path for the scenario folder
+      set_fact:
+        scenario_full_path: "/tmp/{{ random_folder_name }}/{{ scenario_folder }}"
+
+    - name: Clone the GitHub repository
+      git:
+        repo: "{{ github_repo_url }}"
         dest: "/tmp/{{ random_folder_name }}"
-        recursive: yes
+        version: main
+      register: git_clone_result
 
     - name: Get the container IDs
       shell: docker ps -q -f name={{ item }}
@@ -19,20 +24,19 @@
       ignore_errors: yes
       with_items:
         - nopasaran-1
-        - nopasaran-2
 
     - name: Copy test-case folder into the containers
-      command: docker cp "/tmp/{{ random_folder_name }}"/ {{ item.stdout }}:/tmp/
+      command: docker cp "/tmp/{{ random_folder_name }}" {{ item.stdout }}:/tmp/
       when: item.stdout
       with_items: "{{ container_id.results }}"
 
     - name: Execute nopasaran code inside the containers
-      command: docker exec -w "/tmp/{{ random_folder_name }}" {{ item.stdout }} nopasaran WORKER -s /tmp/{{ random_folder_name }}/scenario.json -ll info
+      command: docker exec -w "{{ scenario_full_path }}" {{ item.stdout }} nopasaran WORKER -s {{ scenario_full_path }}/scenario.json -ll info
       when: item.stdout
       with_items: "{{ container_id.results }}"
 
     - name: Retrieve logs from the containers
-      command: docker cp {{ item.stdout }}:/tmp/{{ random_folder_name }}/conf.log /tmp/{{ random_folder_name }}/conf_{{ item.stdout }}.log
+      command: docker cp {{ item.stdout }}:{{ scenario_full_path }}/conf.log /tmp/{{ random_folder_name }}/conf_{{ item.stdout }}.log
       when: item.stdout
       with_items: "{{ container_id.results }}"
 
