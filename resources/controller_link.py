@@ -1,5 +1,6 @@
 import os
 import random
+import secrets
 import subprocess
 import logging
 import subprocess
@@ -215,6 +216,41 @@ class ClientRPC(RpcUtilityMethods):
                 text=True
             )
             return f"+ {result.stdout}"
+        except Exception as e:
+            return f"- {str(e)}"
+        
+
+    async def execute_campaign(self, repository="", folder_name="", variables="", hostname=""):
+        try:
+            final_output_directory = secrets.token_hex(6)
+
+            # Execute the Ansible playbook for the campaign
+            result = subprocess.run(
+                [
+                    "ansible-playbook",
+                    "/ansible/remote_scenario.yml",
+                    "-i",
+                    "/ansible/inventory.ini",
+                    "--extra-vars",
+                    f"github_repo_url={repository} scenario_folder={folder_name} final_output_directory={final_output_directory}",
+                    "--limit", 
+                    f"{hostname}"
+                ],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+
+            # Find log files in the specified directory tree
+            log_contents = []
+            for root, dirs, files in os.walk(f"/results/{final_output_directory}"):
+                for file in files:
+                    if file.startswith("conf") and file.endswith(".log"):
+                        log_file_path = os.path.join(root, file)
+                        with open(log_file_path, 'r') as log_file:
+                            log_contents.append(log_file.read())
+
+            return f"+ {', '.join(log_contents)}"  # Join log contents with a comma or any other separator
         except Exception as e:
             return f"- {str(e)}"
 

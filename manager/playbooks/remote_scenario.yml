@@ -43,6 +43,6 @@
     - name: Copy logs to local machine
       fetch:
         src: "/tmp/{{ random_folder_name }}/conf_{{ item.stdout }}.log"
-        dest: /results/
+        dest: "/results/{{ final_output_directory }}"
       when: item.stdout
       with_items: "{{ container_id.results }}"
