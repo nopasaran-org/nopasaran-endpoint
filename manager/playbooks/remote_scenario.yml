@@ -31,7 +31,7 @@
       with_items: "{{ container_id.results }}"
 
     - name: Execute nopasaran code inside the containers
-      command: docker exec -w "{{ scenario_full_path }}" {{ item.stdout }} nopasaran WORKER -s {{ scenario_full_path }}/scenario.json -ll info
+      command: docker exec -w "{{ scenario_full_path }}" {{ item.stdout }} nopasaran WORKER -s {{ scenario_full_path }}/scenario.json -ll debug
       when: item.stdout
       with_items: "{{ container_id.results }}"
 
