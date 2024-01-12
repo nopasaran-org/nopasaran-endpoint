@@ -18,6 +18,12 @@
         version: main
       register: git_clone_result
 
+    - name: Create variables.json file
+      copy:
+        content: "{{ variables | to_json }}"
+        dest: "{{ scenario_full_path }}/variables.json"
+      when: variables is defined
+
     - name: Get the container IDs
       shell: docker ps -q -f name={{ item }}
       register: container_id
@@ -27,6 +33,11 @@
 
     - name: Copy test-case folder into the containers
       command: docker cp "/tmp/{{ random_folder_name }}" {{ item.stdout }}:/tmp/
+      when: item.stdout
+      with_items: "{{ container_id.results }}"
+
+    - name: Copy variables.json file into the containers
+      command: docker cp "{{ scenario_full_path }}/variables.json" {{ item.stdout }}:/tmp/variables.json
       when: item.stdout
       with_items: "{{ container_id.results }}"
 
@@ -40,7 +51,7 @@
       when: item.stdout
       with_items: "{{ container_id.results }}"
 
-    - name: Copy logs to local machine
+    - name: Copy logs to the local machine
       fetch:
         src: "/tmp/{{ random_folder_name }}/conf_{{ item.stdout }}.log"
         dest: "/results/{{ final_output_directory }}"

@@ -206,20 +206,6 @@ class ClientRPC(RpcUtilityMethods):
         except Exception as e:
             return f"- {str(e)}"
 
-    async def execute_remote_scenario_playbook(self):
-        try:
-            # Execute the Ansible playbook for remote scenario
-            result = subprocess.run(
-                ["ansible-playbook", "-i", "/ansible/inventory.ini", "/ansible/remote_scenario.yml"],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True
-            )
-            return f"+ {result.stdout}"
-        except Exception as e:
-            return f"- {str(e)}"
-        
-
     async def execute_campaign(self, repository="", folder_name="", variables="", hostname=""):
         try:
             final_output_directory = secrets.token_hex(6)
@@ -232,7 +218,7 @@ class ClientRPC(RpcUtilityMethods):
                     "-i",
                     "/ansible/inventory.ini",
                     "--extra-vars",
-                    f"github_repo_url={repository} scenario_folder={folder_name} final_output_directory={final_output_directory}",
+                    f'{{"github_repo_url":"{repository}", "scenario_folder":"{folder_name}", "final_output_directory":"{final_output_directory}", "variables":{variables}}}',
                     "--limit", 
                     f"{hostname}"
                 ],
