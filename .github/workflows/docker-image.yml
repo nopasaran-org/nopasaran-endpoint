@@ -47,7 +47,7 @@ jobs:
           docker buildx build . \
             --file Dockerfile.manager \
             --tag benilies/nopasaran-manager:latest \
-            --platform linux/amd64,linux/arm64 \
+            --platform linux/arm64,linux/amd64 \
             --push
         env:
           DOCKER_CLI_AARCH64: 1
