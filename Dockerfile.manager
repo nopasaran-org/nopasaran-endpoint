@@ -5,7 +5,7 @@ FROM ubuntu:latest
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Update and upgrade packages, and install any necessary dependencies
-RUN apt-get update && apt-get upgrade -y && apt-get install -y openssh-client openssh-server curl python3-pip nano ansible rsync net-tools rsyslog git jq python3-venv libffi-dev build-essential cargo
+RUN apt-get update && apt-get upgrade -y && apt-get install -y openssh-client openssh-server curl python3-pip nano ansible rsync net-tools rsyslog git jq python3-venv libffi-dev build-essential
 
 # Install Netbird
 RUN curl -fsSL https://pkgs.netbird.io/install.sh | sh
