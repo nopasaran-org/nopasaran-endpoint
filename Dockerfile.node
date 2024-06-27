@@ -3,6 +3,7 @@ FROM ubuntu:latest
 
 # Set environment variables if needed (e.g., for non-interactive installation)
 ENV DEBIAN_FRONTEND=noninteractive
+ENV PATH="/app/venv/bin:$PATH"
 
 # Add Docker's official GPG key:
 RUN apt-get update && apt-get install -y \
@@ -33,8 +34,8 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     containerd.io \
     rsyslog \
     git \
-    jq
-
+    jq \
+    python3-venv
 # Install Netbird
 RUN curl -fsSL https://pkgs.netbird.io/install.sh | sh
 
@@ -47,8 +48,12 @@ WORKDIR /app
 # Copy the "resources" folder into the container
 COPY resources /app/resources
 
-# Install Python packages
-RUN pip install -r resources/requirements.txt
+# Create a virtual environment
+RUN python -m venv venv
+
+# Update pip and install Python packages from requirements.txt
+RUN python -m pip install --upgrade pip && \
+    python -m pip install -r resources/requirements.txt
 
 # Create worker and master users with random passwords of length 20
 RUN useradd -m -s /bin/bash node && \
