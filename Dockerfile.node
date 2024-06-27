@@ -35,10 +35,15 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     git \
     jq \
     python3-venv \
-    libffi-dev
-    
+    libffi-dev \
+    build-essential
+
 # Install Netbird
 RUN curl -fsSL https://pkgs.netbird.io/install.sh | sh
+
+# Install Rust and Cargo
+RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
 
 # Create a directory to copy your "resources" folder into
 WORKDIR /app
