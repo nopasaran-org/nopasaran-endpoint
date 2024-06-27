@@ -3,7 +3,6 @@ FROM ubuntu:latest
 
 # Set environment variables if needed (e.g., for non-interactive installation)
 ENV DEBIAN_FRONTEND=noninteractive
-ENV PATH="/app/venv/bin:$PATH"
 
 # Add Docker's official GPG key:
 RUN apt-get update && apt-get install -y \
@@ -39,9 +38,6 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
 # Install Netbird
 RUN curl -fsSL https://pkgs.netbird.io/install.sh | sh
 
-# Create symbolic links to make python3 accessible through python command
-RUN ln -s /usr/bin/python3 /usr/bin/python
-
 # Create a directory to copy your "resources" folder into
 WORKDIR /app
 
@@ -49,7 +45,10 @@ WORKDIR /app
 COPY resources /app/resources
 
 # Create a virtual environment
-RUN python -m venv venv
+RUN python3 -m venv venv
+
+# Make sure we use the virtual environment's Python
+ENV PATH="/app/venv/bin:$PATH"
 
 # Update pip and install Python packages from requirements.txt
 RUN python -m pip install --upgrade pip && \
