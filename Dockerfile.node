@@ -36,6 +36,7 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     jq \
     python3-venv \
     libffi-dev \
+    libssl-dev \
     build-essential
 
 # Install Netbird
