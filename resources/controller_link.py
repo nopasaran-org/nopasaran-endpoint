@@ -239,6 +239,34 @@ class ClientRPC(RpcUtilityMethods):
             return f"+ {', '.join(log_contents)}"  # Join log contents with a comma or any other separator
         except Exception as e:
             return f"- {str(e)}"
+        
+
+    async def configure_netbird_key(self, key_setup, endpoint_name, role, server_domain_name):
+        try:            
+            # Construct the hostname
+            hostname = f"{endpoint_name}.{role}.{server_domain_name}"
+
+            # Execute the netbird up command
+            result = subprocess.run(
+                [
+                    "netbird",
+                    "up",
+                    "--setup-key", key_setup,
+                    "--hostname", hostname
+                ],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+
+            # Check if there are any errors
+            if result.returncode != 0:
+                return f"- Error: {result.stderr}"
+
+            return f"+ Done"  # Join log contents with a comma or any other separator
+        except Exception as e:
+            return f"- {str(e)}"
+        
 
 def get_local_ip_for_target(target_ip):
     try:
