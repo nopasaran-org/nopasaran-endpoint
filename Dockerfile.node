@@ -4,6 +4,21 @@ FROM ubuntu:latest
 # Set environment variables if needed (e.g., for non-interactive installation)
 ENV DEBIAN_FRONTEND=noninteractive
 
+# Add Docker's official GPG key:
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    curl \
+    gnupg
+RUN install -m 0755 -d /etc/apt/keyrings
+RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+RUN chmod a+r /etc/apt/keyrings/docker.gpg
+
+# Add the repository to Apt sources:
+RUN echo \
+  "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | \
+  tee /etc/apt/sources.list.d/docker.list > /dev/null
+
 # Update and upgrade packages, and install any necessary dependencies
 RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     software-properties-common \
@@ -12,6 +27,9 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     python3-pip \
     nano \
     rsync \
+    docker-ce \
+    docker-ce-cli \
+    containerd.io \
     rsyslog \
     git \
     jq \
@@ -56,6 +74,9 @@ RUN echo 'root:your_password' | chpasswd
 
 # Change SSH port to 1963 in sshd_config
 RUN sed -i 's/#Port 22/Port 1963/' /etc/ssh/sshd_config
+
+# Add the manager user to the docker group
+RUN usermod -aG docker manager
 
 # Modify the SSHD configuration file for logging settings
 RUN sed -i 's/#SyslogFacility AUTH/SyslogFacility AUTH/' /etc/ssh/sshd_config && \
