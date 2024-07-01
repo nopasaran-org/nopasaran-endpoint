@@ -1,5 +1,7 @@
 #!/bin/bash
 
+netbird service start
+
 python /app/resources/controller_link.py & disown
 
 rsyslogd
