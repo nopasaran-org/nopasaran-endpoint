@@ -7,15 +7,10 @@ on:
 
 jobs:
   build-node:
-    runs-on: ${{ matrix.runner }}
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         platform: [linux/amd64, linux/arm64]
-        include:
-          - platform: linux/amd64
-            runner: ubuntu-latest
-          - platform: linux/arm64
-            runner: actuated-aarch64
 
     steps:
       - name: Set up Docker Buildx
@@ -31,22 +26,17 @@ jobs:
         run: |
           docker buildx build . \
             --file Dockerfile.node \
-            --tag benilies/nopasaran-node:latest \
+            --tag benilies/nopasaran-manager:latest \
             --platform ${{ matrix.platform }} \
             --push
         env:
           DOCKER_CLI_AARCH64: 1
 
   build-manager:
-    runs-on: ${{ matrix.runner }}
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         platform: [linux/amd64, linux/arm64]
-        include:
-          - platform: linux/amd64
-            runner: ubuntu-latest
-          - platform: linux/arm64
-            runner: actuated-aarch64
 
     steps:
       - name: Set up Docker Buildx
