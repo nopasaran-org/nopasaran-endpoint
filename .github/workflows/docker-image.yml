@@ -26,7 +26,7 @@ jobs:
         run: |
           docker buildx build . \
             --file Dockerfile.node \
-            --tag benilies/nopasaran-node:${{ matrix.platform }} \
+            --tag benilies/nopasaran-manager:latest \
             --platform ${{ matrix.platform }} \
             --push
         env:
@@ -52,7 +52,7 @@ jobs:
         run: |
           docker buildx build . \
             --file Dockerfile.manager \
-            --tag benilies/nopasaran-manager:${{ matrix.platform }} \
+            --tag benilies/nopasaran-manager:latest \
             --platform ${{ matrix.platform }} \
             --push
         env:
