@@ -262,10 +262,10 @@ class ClientRPC(RpcUtilityMethods):
             return f"- {str(e)}"
         
 
-    async def configure_netbird_key(self, key_setup="", endpoint_name="", role="", server_domain_name=""):
+    async def configure_netbird_key(self, key_setup="", endpoint_name="", owner_username="", role="", server_domain_name=""):
         try:            
             # Construct the hostname
-            hostname = f"{endpoint_name}.{role}.{server_domain_name}"
+            hostname = f"{endpoint_name}.{owner_username}.{role}.{server_domain_name}"
 
             # Execute the netbird up command
             result = subprocess.run(
