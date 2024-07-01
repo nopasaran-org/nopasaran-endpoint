@@ -65,6 +65,7 @@ RUN sed -i 's/#SyslogFacility AUTH/SyslogFacility AUTH/' /etc/ssh/sshd_config &&
 
 # Copy your the scripts into the container
 COPY entry.sh /app/entry.sh
+COPY update_nopasaran.sh /app/update_nopasaran.sh
 
 # Copy your Ansible playbook and inventory files into the container
 COPY /manager/playbooks /ansible/
