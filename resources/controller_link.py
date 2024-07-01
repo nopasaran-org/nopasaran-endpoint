@@ -57,6 +57,27 @@ ROLE = os.environ.get("ROLE")
 # Define the output file path
 INVENTORY_PATH = os.path.expanduser(os.getenv("INVENTORY_PATH"))
 
+import subprocess
+import re
+
+def get_netbird_ip():
+    try:
+        # Run the netbird status command and capture its output
+        result = subprocess.run(['netbird', 'status'], capture_output=True, text=True, check=True)
+
+        # Extract NetBird IP using regex
+        output = result.stdout.strip()
+        ip_match = re.search(r'NetBird IP: (\d+\.\d+\.\d+\.\d+)', output)
+        if ip_match:
+            return ip_match.group(1)
+        else:
+            return None
+    
+    except subprocess.CalledProcessError:
+        # If the command fails, return None
+        return None
+
+
 # Methods to expose to the clients
 class ClientRPC(RpcUtilityMethods):
     def __init__(self):
@@ -317,7 +338,8 @@ def get_changes(previous_entries):
 async def on_connect(channel):
     inventory_update_thread_exit.clear()
     client_private_ip = get_local_ip_for_target(host)
-    await asyncio.create_task(channel.other.register_private_ip(client_private_ip=client_private_ip))
+    netbird_ip = get_netbird_ip()
+    await asyncio.create_task(channel.other.register_ip_addresses(client_private_ip=client_private_ip, netbird_ip=netbird_ip))
 
     if ROLE == "manager":
         # Create a separate thread to check the difference in inventory
