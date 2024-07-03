@@ -86,72 +86,10 @@ class ClientRPC(RpcUtilityMethods):
         self.is_running = False
         self.can_exit = asyncio.Event()
 
-    async def check_tunnel_process_async(self):
-        while True:
-            if self.is_running and self.process:
-                return_code = self.process.poll()
-                if return_code is not None:
-                    self.is_running = False
-                    asyncio.create_task(self.channel.other.notify_free_status())
-                    logging.error(f"SSH tunnel process (PID {self.process.pid}) has exited with return code {return_code}")
-                    # You can take appropriate action here, such as restarting the tunnel or handling the error.
-
-            await asyncio.sleep(1)
-
-    async def check_inventory_changes(self):
-        current_entries = []
-        while True:
-            new_entries = get_changes(current_entries)
-            if new_entries is not None:
-                current_entries = new_entries
-                asyncio.create_task(self.channel.other.notify_connected_nodes(connected_nodes=current_entries))
-
-            await asyncio.sleep(1)  # Check every 1 second
-
     async def allow_exit(self):
         async def allow():
             self.can_exit.set()
         asyncio.create_task(allow())
-
-    async def create_ssh_tunnel(self, ssh_node_hostname="", ssh_manager_hostname="", ssh_port="", ssh_username=""):
-        # Generate a random port between 20000 and 30000
-        random_port = random.randint(20000, 30000)
-
-        # Construct the SSH tunnel command
-        tunnel_command = [
-            "ssh",
-            "-R", f"{ssh_node_hostname}:{random_port}:localhost:{1963}",
-            "-N",  # No command execution
-            "-p", ssh_port,  # SSH port
-            "-l", ssh_username,  # SSH username
-            ssh_manager_hostname  # SSH host
-        ]
-
-        try:
-            # Start the SSH tunnel as a background process
-            self.process = subprocess.Popen(
-                tunnel_command,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                shell=False
-            )
-
-            self.is_running = True
-
-
-            # Create a separate thread to run the tunnel process checker
-            def tunnel_checker_thread():
-                asyncio.run(self.check_tunnel_process_async())
-
-            tunnel_checker_thread = threading.Thread(target=tunnel_checker_thread)
-            tunnel_checker_thread.daemon = True  # Allow the thread to exit when the main program exits
-            tunnel_checker_thread.start()
-
-            return f"+ {ssh_manager_hostname}"
-        except Exception as e:
-            # Handle any errors that occur during SSH tunnel creation
-            error_message = f"Error creating SSH tunnel: {e}"
-            return f"- {error_message}"
 
     async def restart(self):
         restart_command = ["service", "ssh", "restart"]
@@ -167,17 +105,6 @@ class ClientRPC(RpcUtilityMethods):
             return f"+ {True}"
         except Exception as e:
             error_message = f"Error restarting the SSH daemon: {e}"
-            return f"- {error_message}"
-        
-    async def free(self):
-        try:
-            # Use subprocess to execute the 'kill' command with the PID
-            subprocess.run(["kill", str(self.process.pid)], check=True)
-            self.process = None
-            return f"+ {None}"
-        except Exception as e:
-            # Handle any errors that occur when trying to kill the process
-            error_message = f"Error killing SSH tunnel process: {e}"
             return f"- {error_message}"
 
     async def generate_certificates_and_restart(self):
@@ -196,7 +123,6 @@ class ClientRPC(RpcUtilityMethods):
     async def list_certificates(self):
         try:
             certificates = get_certificate_contents()
-            print(certificates)
             return f"+ {certificates}"
         except Exception as e:
             return f"- {e}"
@@ -308,53 +234,13 @@ def get_local_ip_for_target(target_ip):
         print(f"Error: {e}")
         return None
 
-# Initialize a threading event flag
-inventory_update_thread_exit = threading.Event()
-
-# Initialize a set to store the previous entries
-previous_entries = set()
-
-def load_entries(file_path):
-    entries = []
-    try:
-        with open(file_path, 'r') as file:
-            for line in file:
-                # Assuming the entries are in the format "[nopasaran_nodes] hostname"
-                if line.strip().startswith("[nopasaran_nodes]"):
-                    continue
-                entries.append(line.split()[0])
-    except FileNotFoundError:
-        pass  # Handle the case where the file doesn't exist
-    return entries
-
-def get_changes(previous_entries):
-    current_entries = load_entries(INVENTORY_PATH)
-    if current_entries != previous_entries:
-        previous_entries = current_entries
-        return current_entries
-    
-    return None
 
 async def on_connect(channel):
-    inventory_update_thread_exit.clear()
     client_private_ip = get_local_ip_for_target(host)
     netbird_ip = get_netbird_ip()
     await asyncio.create_task(channel.other.register_ip_addresses(client_private_ip=client_private_ip, netbird_ip=netbird_ip))
 
-    if ROLE == "manager":
-        # Create a separate thread to check the difference in inventory
-        def inventory_update_checker(channel):
-            while not inventory_update_thread_exit.is_set():
-                asyncio.run(channel.methods.check_inventory_changes())
-                # Sleep for a short duration before checking again
-                asyncio.sleep(1)
-
-        inventory_update_thread = threading.Thread(target=inventory_update_checker, args=(channel,))
-        inventory_update_thread.daemon = True  # Allow the thread to exit when the main program exits
-        inventory_update_thread.start()
-
 async def run_client(uri):
-    global previous_entries
     while True:
         try:
             async with WebSocketRpcClient(uri, ClientRPC(), on_connect=[on_connect]) as client:
@@ -362,11 +248,8 @@ async def run_client(uri):
                 task2 = asyncio.create_task(client.channel._closed.wait())
 
                 # Wait for either the can_exit event or the WebSocket connection to close
-                done, _ = await asyncio.wait([task1, task2], return_when=asyncio.FIRST_COMPLETED)
+                await asyncio.wait([task1, task2], return_when=asyncio.FIRST_COMPLETED)
 
-                # Set the inventory update thread exit flag when the WebSocket connection is closed
-                if task2 in done:
-                    inventory_update_thread_exit.set()
         except Exception as e:
             print(f"Error: {e}")
             await asyncio.sleep(3)  # Retry every 3 seconds
