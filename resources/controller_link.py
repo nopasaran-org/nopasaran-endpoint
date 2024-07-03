@@ -287,7 +287,7 @@ class ClientRPC(RpcUtilityMethods):
             return f"+ Done"  # Join log contents with a comma or any other separator
         except Exception as e:
             return f"- {str(e)}"
-        
+
 
 def get_local_ip_for_target(target_ip):
     try:
