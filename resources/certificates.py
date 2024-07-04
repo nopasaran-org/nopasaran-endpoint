@@ -8,9 +8,12 @@ import json as json_loader
 
 import requests
 import dotenv
+from cryptography import x509
 from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import serialization
+from cryptography.x509.oid import NameOID
+from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives.serialization import Encoding, PrivateFormat, NoEncryption
 from utils import get_api_base_url
 
 # Load the .env file, but don't override existing environment variables
@@ -92,7 +95,7 @@ def generate_new_ssh_key(certificate_type, key_size=4096, exponent=65537):
     
     save_response_to_file(public_key_ssh, input_path, input_filename_public)
 
-def retrieve_ca_certificate(certificate_type):
+def retrieve_ssh_ca_certificate(certificate_type):
     if ROLE in [NODE, MANAGER]:
             if certificate_type == ROLE:
                 variable_certificate_suffix = OWN
@@ -179,6 +182,164 @@ def retrieve_ssh_certificate(certificate_type):
             update_sshd_config_user_certificate()
         else:
             update_sshd_config_host_certificate()
+    else:
+        logger.error(f"Request failed with status code: {response.status_code}")
+        logger.error(f"Error message: {response.text}")
+
+
+
+
+
+
+
+
+
+
+
+def generate_new_x509_key(key_size=4096, exponent=65537):
+    input_path = os.getenv('X509_PATH')
+    input_filename_private = os.getenv('X509_FILENAME_PRIVATE')
+
+
+    # Generate an RSA private key for X509
+    private_key = rsa.generate_private_key(
+        public_exponent=exponent,
+        key_size=key_size,
+        backend=default_backend()
+    )
+
+    # Serialize the private key in PEM format and save it to a file
+    private_key_x509 = private_key.private_bytes(
+            encoding=Encoding.PEM,
+            format=PrivateFormat.TraditionalOpenSSL,
+            encryption_algorithm=NoEncryption()
+        )
+
+    save_response_to_file(private_key_x509, input_path, input_filename_private)
+
+def generate_new_x509_csr(common_name):
+    input_path = os.getenv('X509_PATH')
+    input_filename_private = os.getenv('X509_FILENAME_PRIVATE')
+    input_filename_csr = os.getenv('X509_FILENAME_CSR')
+
+    # Construct the full path to the private key file
+    private_key_path = os.path.join(input_path, input_filename_private)
+
+    # Load the private key
+    with open(private_key_path, "rb") as key_file:
+        private_key = serialization.load_pem_private_key(
+            key_file.read(),
+            password=None,
+            backend=default_backend()
+        )
+
+    # Create the CSR
+    csr = x509.CertificateSigningRequestBuilder().subject_name(
+        x509.Name([
+            x509.NameAttribute(NameOID.COMMON_NAME, common_name),
+        ])
+    ).sign(private_key, hashes.SHA256(), default_backend())
+
+    # Serialize the CSR to PEM format
+    csr_pem = csr.public_bytes(serialization.Encoding.PEM)
+
+    # Save the CSR to file
+    save_response_to_file(csr_pem, input_path, input_filename_csr)
+    return csr
+
+
+def retrieve_x509_certificate():
+    # Retrieve the x509 CA certificate
+    retrieve_x509_ca_certificate()
+    
+    api_domain = get_api_base_url(os.getenv('SERVER_HOST'), os.getenv('SERVER_PORT'))
+
+    # Construct the URL based on the certificate type
+    certificate_url = urljoin(api_domain, os.getenv('API_GENERATE_X509_CERTIFICATE_PATH'))
+
+    json = {
+            "token": AUTHORIZATION_TOKEN,
+            "endpoint_name": ENDPOINT_NAME
+        }
+    
+    # Check if the 'generate' field is set to 1 to generate a new key
+    if os.getenv(f'X509_GENERATE') == "1":
+        # Generate a new SSH key and set it in the headers
+        generate_new_x509_key()
+
+
+    fqdn_url = urljoin(api_domain, os.getenv('API_GET_FQDN'))
+    fqdn_response = requests.get(fqdn_url, json=json) 
+    # Check if the request was successful
+    if fqdn_response.status_code == 200:
+        fqdn = json_loader.loads(fqdn_response.content.decode()).get("fqdn")
+        logger.info(f"FQDN retrieved: {fqdn}")
+    else:
+        logger.error(f"Request failed with status code: {fqdn_response.status_code}")
+        logger.error(f"Error message: {fqdn_response.text}")
+
+    csr = generate_new_x509_csr(common_name=fqdn)
+    csr_pem = csr.public_bytes(Encoding.PEM).decode('utf-8')
+    json["csr_pem"] = csr_pem
+
+    # Send the POST request with headers
+    response = requests.post(certificate_url, json=json)
+
+    # Check if the request was successful
+    if response.status_code == 200:
+        content = json_loader.loads(response.content.decode()).get("certificate").encode()
+        save_response_to_file(content, os.getenv('X509_PATH'), os.getenv('X509_FILENAME_CERTIFICATE'))
+        create_x509_certificate_chain()
+    else:
+        logger.error(f"Request failed with status code: {response.status_code}")
+        logger.error(f"Error message: {response.text}")
+
+
+def create_x509_certificate_chain():
+    # Get environment variables
+    x509_folder_path = os.getenv('X509_PATH')
+    x509_certificate_filename = os.getenv('X509_FILENAME_CERTIFICATE')
+    x509_ca_filename = os.getenv('X509_FILENAME_CA')
+    x509_chain_filename = os.getenv('X509_FILENAME_CHAIN_CRT')
+
+    # Construct full file paths
+    certificate_path = os.path.join(x509_folder_path, x509_certificate_filename)
+    ca_path = os.path.join(x509_folder_path, x509_ca_filename)
+    chain_path = os.path.join(x509_folder_path, x509_chain_filename)
+
+    # Read the certificate file
+    with open(certificate_path, 'r') as cert_file:
+        certificate_content = cert_file.read()
+
+    # Read the CA file
+    with open(ca_path, 'r') as ca_file:
+        ca_content = ca_file.read()
+
+    # Concatenate the certificate and CA contents
+    chain_content = ca_content + certificate_content
+
+    # Write the concatenated content to the chain file
+    with open(chain_path, 'w') as chain_file:
+        chain_file.write(chain_content)
+
+    logger.info(f"Certificate chain created at {chain_path}")
+
+
+
+def retrieve_x509_ca_certificate():    
+    # Get the API domain from the [server] section
+    api_domain = get_api_base_url(os.getenv('SERVER_HOST'), os.getenv('SERVER_PORT'))
+
+    # Construct the URL for CA certificate retrieval
+    ca_url = urljoin(api_domain, os.getenv('API_GET_X509_CA_PATH'))
+
+    # Send a GET request to retrieve the CA certificate
+    response = requests.get(ca_url)
+
+    # Check if the request was successful
+    if response.status_code == 200:
+        # Save the CA certificate to the specified output path
+        save_response_to_file(response.content, os.getenv('X509_PATH'), os.getenv('X509_FILENAME_CA'))
     else:
         logger.error(f"Request failed with status code: {response.status_code}")
         logger.error(f"Error message: {response.text}")
@@ -354,7 +515,7 @@ def get_certificates():
 
     # List of tasks for certificate retrieval
     tasks = []
-    with ThreadPoolExecutor(max_workers=4) as executor:
+    with ThreadPoolExecutor(max_workers=5) as executor:
         # Example usage to retrieve a user certificate
         tasks.append(executor.submit(retrieve_ssh_certificate, USER))
 
@@ -362,10 +523,13 @@ def get_certificates():
         tasks.append(executor.submit(retrieve_ssh_certificate, HOST))
 
         # Example usage to retrieve a node CA certificate
-        tasks.append(executor.submit(retrieve_ca_certificate, NODE))
+        tasks.append(executor.submit(retrieve_ssh_ca_certificate, NODE))
 
         # Example usage to retrieve a manager CA certificate
-        tasks.append(executor.submit(retrieve_ca_certificate, MANAGER))
+        tasks.append(executor.submit(retrieve_ssh_ca_certificate, MANAGER))
+
+        # Example usage to retrieve a X509 certificate
+        tasks.append(executor.submit(retrieve_x509_certificate))
 
     success = True
 

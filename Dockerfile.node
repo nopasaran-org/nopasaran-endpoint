@@ -69,6 +69,9 @@ RUN useradd -m -s /bin/bash node && \
 # Create a directory for SSH host keys
 RUN mkdir /var/run/sshd
 
+# Create a directory for X509 components
+RUN mkdir /x509
+
 # Set root password (change this for production use)
 RUN echo 'root:your_password' | chpasswd
 
