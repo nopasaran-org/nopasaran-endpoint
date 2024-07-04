@@ -1,9 +1,7 @@
 #!/bin/bash
 
-netbird service start
+./update_nopasaran.sh & disown
 
 python /app/resources/controller_link.py & disown
-
-./update_nopasaran.sh & disown
 
 /usr/sbin/sshd -D
