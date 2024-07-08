@@ -126,32 +126,6 @@ class ClientRPC(RpcUtilityMethods):
             return f"+ {certificates}"
         except Exception as e:
             return f"- {e}"
-        
-    async def execute_create_containers_playbook(self):
-        try:
-            # Execute the Ansible playbook for creating containers
-            result = subprocess.run(
-                ["ansible-playbook", "-i", "/ansible/inventory.ini", "/ansible/create_containers.yml"],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True
-            )
-            return f"+ {result.stdout}"
-        except Exception as e:
-            return f"- {str(e)}"
-
-    async def execute_delete_containers_playbook(self):
-        try:
-            # Execute the Ansible playbook for deleting containers
-            result = subprocess.run(
-                ["ansible-playbook", "-i", "/ansible/inventory.ini", "/ansible/delete_containers.yml"],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True
-            )
-            return f"+ {result.stdout}"
-        except Exception as e:
-            return f"- {str(e)}"
 
     async def execute_campaign(self, repository="", folder_name="", variables="", hostname=""):
         try:

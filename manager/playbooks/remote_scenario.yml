@@ -1,6 +1,7 @@
 ---
-- name: Execute Python script inside Docker container
-  hosts: nopasaran_nodes
+- name: Execute Python script on host
+  hosts: all
+  remote_user: manager
 
   tasks:
     - name: Generate a random folder name
@@ -24,36 +25,17 @@
         dest: "{{ scenario_full_path }}/variables.json"
       when: variables is defined
 
-    - name: Get the container IDs
-      shell: docker ps -q -f name={{ item }}
-      register: container_id
-      ignore_errors: yes
-      with_items:
-        - nopasaran-1
-
-    - name: Copy test-case folder into the containers
-      command: docker cp "/tmp/{{ random_folder_name }}" {{ item.stdout }}:/tmp/
-      when: item.stdout
-      with_items: "{{ container_id.results }}"
-
-    - name: Copy variables.json file into the containers
-      command: docker cp "{{ scenario_full_path }}/variables.json" {{ item.stdout }}:/tmp/variables.json
-      when: item.stdout
-      with_items: "{{ container_id.results }}"
-
-    - name: Execute nopasaran code inside the containers
-      command: docker exec -w "{{ scenario_full_path }}" {{ item.stdout }} nopasaran WORKER -s {{ scenario_full_path }}/scenario.json -ll debug
-      when: item.stdout
-      with_items: "{{ container_id.results }}"
-
-    - name: Retrieve logs from the containers
-      command: docker cp {{ item.stdout }}:{{ scenario_full_path }}/conf.log /tmp/{{ random_folder_name }}/conf_{{ item.stdout }}.log
-      when: item.stdout
-      with_items: "{{ container_id.results }}"
+    - name: Ensure /app/venv/bin is in the PATH
+      shell: |
+        export PATH=/app/venv/bin:$PATH
+        nopasaran WORKER -s {{ scenario_full_path }}/scenario.json -ll debug
+      args:
+        chdir: "{{ scenario_full_path }}"
+      register: execution_result
 
     - name: Copy logs to the local machine
       fetch:
-        src: "/tmp/{{ random_folder_name }}/conf_{{ item.stdout }}.log"
-        dest: "/results/{{ final_output_directory }}"
-      when: item.stdout
-      with_items: "{{ container_id.results }}"
+        src: "{{ scenario_full_path }}/conf.log"
+        dest: "/results/{{ final_output_directory }}/conf.log"
+        flat: yes
+        remote_src: yes
