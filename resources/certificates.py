@@ -186,16 +186,6 @@ def retrieve_ssh_certificate(certificate_type):
         logger.error(f"Request failed with status code: {response.status_code}")
         logger.error(f"Error message: {response.text}")
 
-
-
-
-
-
-
-
-
-
-
 def generate_new_x509_key(key_size=4096, exponent=65537):
     input_path = os.getenv('X509_PATH')
     input_filename_private = os.getenv('X509_FILENAME_PRIVATE')

@@ -1,5 +1,4 @@
 import os
-import random
 import secrets
 import subprocess
 import logging
@@ -7,7 +6,6 @@ import subprocess
 import sys
 import asyncio
 import socket
-import threading
 from fastapi_websocket_rpc import WebSocketRpcClient, logger
 from fastapi_websocket_rpc.rpc_methods import RpcUtilityMethods
 import dotenv
@@ -127,7 +125,7 @@ class ClientRPC(RpcUtilityMethods):
         except Exception as e:
             return f"- {e}"
 
-    async def execute_campaign(self, repository="", folder_name="", variables="", hostname=""):
+    async def execute_campaign(self, hostname="", remote_control_channel_end="", repository="", folder_name="", variables=""):
         try:
             final_output_directory = secrets.token_hex(6)
 
@@ -137,11 +135,9 @@ class ClientRPC(RpcUtilityMethods):
                     "ansible-playbook",
                     "/ansible/remote_scenario.yml",
                     "-i",
-                    "/ansible/inventory.ini",
+                    f"{hostname}:1963",
                     "--extra-vars",
-                    f'{{"github_repo_url":"{repository}", "scenario_folder":"{folder_name}", "final_output_directory":"{final_output_directory}", "variables":{variables}}}',
-                    "--limit", 
-                    f"{hostname}"
+                    f'{{"github_repo_url":"{repository}", "scenario_folder":"{folder_name}", "final_output_directory":"{final_output_directory}", "remote_control_channel_end":"{remote_control_channel_end}", "variables":{variables}}}',
                 ],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,

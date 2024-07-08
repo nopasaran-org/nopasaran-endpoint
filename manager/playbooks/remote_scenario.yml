@@ -25,6 +25,17 @@
         dest: "{{ scenario_full_path }}/variables.json"
       when: variables is defined
 
+    - name: Create controller_configuration.json file
+      copy:
+        content: |
+          {
+            "ROOT_CERTIFICATE": "/x509/ca.crt",
+            "PRIVATE_CERTIFICATE": "/x509/chain.pem",
+            "DESTINATION_IP": "{{ remote_control_channel_end }}",
+            "SERVER_PORT": "1957"
+          }
+        dest: "{{ scenario_full_path }}/controller_configuration.json"
+
     - name: Ensure /app/venv/bin is in the PATH
       shell: |
         export PATH=/app/venv/bin:$PATH
