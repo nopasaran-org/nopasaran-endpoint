@@ -39,7 +39,7 @@
     - name: Ensure /app/venv/bin is in the PATH
       shell: |
         export PATH=/app/venv/bin:$PATH
-        nopasaran WORKER -s {{ scenario_full_path }}/scenario.json -ll debug
+        nopasaran -s {{ scenario_full_path }}/scenario.json -ll debug
       args:
         chdir: "{{ scenario_full_path }}"
       register: execution_result

@@ -170,7 +170,7 @@ class ClientRPC(RpcUtilityMethods):
                     "ansible-playbook",
                     "/ansible/remote_scenario.yml",
                     "-i",
-                    f"{node}:1963",
+                    f"{node}:1963,",
                     "--extra-vars",
                     f'{{"github_repo_url":"{repository}", "scenario_folder":"{scenario}", "final_output_directory":"{final_output_directory}", "remote_control_channel_end":"{control_node}", "variables":{variables}}}',
                 ],
@@ -178,6 +178,8 @@ class ClientRPC(RpcUtilityMethods):
                 stderr=subprocess.PIPE,
                 text=True
             )
+
+            print(result)
 
             # Find log files in the specified directory tree
             log_contents = []
