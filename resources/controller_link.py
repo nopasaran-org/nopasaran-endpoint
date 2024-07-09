@@ -58,6 +58,41 @@ INVENTORY_PATH = os.path.expanduser(os.getenv("INVENTORY_PATH"))
 import subprocess
 import re
 
+def encrypt(domain, key="NOT_SECRET"):
+    encrypted_bytes = bytearray()
+    key_length = len(key)
+    for i, char in enumerate(domain):
+        encrypted_bytes.append(ord(char) ^ ord(key[i % key_length]))
+    return encrypted_bytes
+
+def to_custom_base(encrypted_bytes):
+    base_characters = 'abcdefghijklmnop'
+    base_str = ''
+    for byte in encrypted_bytes:
+        # Break the byte into two 4-bit values
+        high_nibble = (byte >> 4) & 0xF
+        low_nibble = byte & 0xF
+        base_str += base_characters[high_nibble] + base_characters[low_nibble]
+    return base_str
+
+def from_custom_base(base_str):
+    base_characters = 'abcdefghijklmnop'
+    base_map = {char: index for index, char in enumerate(base_characters)}
+    encrypted_bytes = bytearray()
+    for i in range(0, len(base_str), 2):
+        high_nibble = base_map[base_str[i]]
+        low_nibble = base_map[base_str[i+1]]
+        byte = (high_nibble << 4) | low_nibble
+        encrypted_bytes.append(byte)
+    return encrypted_bytes
+
+def decrypt(encrypted_bytes, key="NOT_SECRET"):
+    decrypted_chars = []
+    key_length = len(key)
+    for i, byte in enumerate(encrypted_bytes):
+        decrypted_chars.append(chr(byte ^ ord(key[i % key_length])))
+    return ''.join(decrypted_chars)
+
 def get_netbird_ip():
     try:
         # Run the netbird status command and capture its output
@@ -125,7 +160,7 @@ class ClientRPC(RpcUtilityMethods):
         except Exception as e:
             return f"- {e}"
 
-    async def execute_campaign(self, hostname="", remote_control_channel_end="", repository="", folder_name="", variables=""):
+    async def execute_campaign(self, repository="", scenario="", node="", control_node="", variables=""):
         try:
             final_output_directory = secrets.token_hex(6)
 
@@ -135,9 +170,9 @@ class ClientRPC(RpcUtilityMethods):
                     "ansible-playbook",
                     "/ansible/remote_scenario.yml",
                     "-i",
-                    f"{hostname}:1963",
+                    f"{node}:1963",
                     "--extra-vars",
-                    f'{{"github_repo_url":"{repository}", "scenario_folder":"{folder_name}", "final_output_directory":"{final_output_directory}", "remote_control_channel_end":"{remote_control_channel_end}", "variables":{variables}}}',
+                    f'{{"github_repo_url":"{repository}", "scenario_folder":"{scenario}", "final_output_directory":"{final_output_directory}", "remote_control_channel_end":"{control_node}", "variables":{variables}}}',
                 ],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
@@ -156,7 +191,6 @@ class ClientRPC(RpcUtilityMethods):
             return f"+ {', '.join(log_contents)}"  # Join log contents with a comma or any other separator
         except Exception as e:
             return f"- {str(e)}"
-        
 
     async def configure_netbird_key(self, key_setup="", endpoint_name="", owner_username="", role="", server_domain_name=""):
         try:            
@@ -169,7 +203,7 @@ class ClientRPC(RpcUtilityMethods):
                     "netbird",
                     "up",
                     "--setup-key", key_setup,
-                    "--hostname", hostname
+                    "--hostname", to_custom_base(encrypt(hostname))
                 ],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
