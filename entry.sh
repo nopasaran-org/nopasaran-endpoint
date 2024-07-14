@@ -2,6 +2,8 @@
 
 python /app/resources/controller_link.py & disown
 
-./update_nopasaran.sh & disown
+netbird service start
+pip install --upgrade pip
+pip install --upgrade nopasaran
 
 /usr/sbin/sshd -D
