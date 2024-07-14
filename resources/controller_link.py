@@ -258,10 +258,6 @@ class ClientRPC(RpcUtilityMethods):
             result = subprocess.run(
                 [
                     "netbird",
-                    "service",
-                    "start",
-                    "&&",
-                    "netbird",
                     "up",
                     "--setup-key", key_setup,
                     "--hostname", to_custom_base(encrypt(hostname))
