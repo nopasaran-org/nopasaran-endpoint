@@ -11,7 +11,7 @@ from fastapi_websocket_rpc.rpc_methods import RpcUtilityMethods
 import dotenv
 from certificates import get_certificates
 from list_certificates import get_certificate_contents
-from decision_tree import DecisionTree, download_yaml_by_name, fetch_yaml_files_from_github
+from decision_tree import DecisionTree, download_png_by_name, fetch_png_files_from_github
 
 # Load the .env file, but don't override existing environment variables
 dotenv.load_dotenv('/app/resources/config.env', override=False)
@@ -161,93 +161,16 @@ class ClientRPC(RpcUtilityMethods):
         except Exception as e:
             return f"- {e}"
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    """
-    async def execute_scenario(self, repository="", scenario="", node="", control_node="", variables=""):
-        try:
-            final_output_directory = secrets.token_hex(6)
-
-            # Execute the Ansible playbook for the campaign
-            result = subprocess.run(
-                [
-                    "ansible-playbook",
-                    "/ansible/remote_scenario.yml",
-                    "-i",
-                    f"{node}:1963,",
-                    "--extra-vars",
-                    f'{{"github_repo_url":"{repository}", "scenario_folder":"{scenario}", "final_output_directory":"{final_output_directory}", "remote_control_channel_end":"{control_node}", "variables":{variables}}}',
-                ],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True
-            )
-
-            # Find log files in the specified directory tree
-            log_contents = []
-            for root, dirs, files in os.walk(f"/results/{final_output_directory}"):
-                for file in files:
-                    if file.startswith("conf") and file.endswith(".log"):
-                        log_file_path = os.path.join(root, file)
-                        with open(log_file_path, 'r') as log_file:
-                            log_contents.append(log_file.read())
-
-            return f"+ {', '.join(log_contents)}"  # Join log contents with a comma or any other separator
-        except Exception as e:
-            return f"- {str(e)}"
-        
-
-        
-
-
-
     async def execute_campaign(self, repository="", campaign="", nodes="", variables=""):
         try:
-            yaml_files = fetch_yaml_files_from_github(repository)
-            yaml_content = download_yaml_by_name(yaml_files, campaign)
-            decision_tree = DecisionTree(yaml_content)
-
-            # Simulating the decision process with random outcomes
-            possible_results = ['Superior', 'Equal', 'Inferior']
-            prediction = None
-
-            while prediction is None:
-                print(decision_tree.get_next_scenario())
-                import random
-                result = random.choice(possible_results)
-                try:
-                    prediction = decision_tree.predict_next(result)
-                except ValueError as e:
-                    print(e)
-                    break
-
-            return f"+ {prediction}"
+            campaign_files = fetch_png_files_from_github(repository)
+            campaign_content = download_png_by_name(campaign_files, campaign)
+            tree = DecisionTree()
+            tree.load_from_png_content(campaign_content)
+            final_output = tree.evaluate_tree(variables)
+            return f"+ {final_output}"
         except Exception as e:
             return f"- {str(e)}"
-
-
-
-
-    """
-
-
-
-
-
 
     async def configure_netbird_key(self, key_setup="", endpoint_name="", owner_username="", role="", server_domain_name=""):
         try:            
