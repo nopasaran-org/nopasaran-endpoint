@@ -126,19 +126,28 @@ class ClientRPC(RpcUtilityMethods):
         asyncio.create_task(allow())
 
     async def restart(self):
-        restart_command = ["service", "ssh", "restart"]
-
         try:
+            # Start netbird service
+            netbird_command = ["service", "netbird", "start"]
             subprocess.Popen(
-                restart_command,
+                netbird_command,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True
-            )
+            ).communicate()  # Ensure this completes before proceeding
             
+            # Restart ssh service
+            ssh_command = ["service", "ssh", "restart"]
+            subprocess.Popen(
+                ssh_command,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            ).communicate()  # Ensure this completes before proceeding
+
             return f"+ {True}"
         except Exception as e:
-            error_message = f"Error restarting the SSH daemon: {e}"
+            error_message = f"Error restarting the services: {e}"
             return f"- {error_message}"
 
     async def generate_certificates_and_restart(self):
