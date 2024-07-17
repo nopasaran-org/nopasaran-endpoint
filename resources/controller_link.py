@@ -128,7 +128,7 @@ class ClientRPC(RpcUtilityMethods):
     async def restart(self):
         try:
             # Start netbird service
-            netbird_command = ["service", "netbird", "start"]
+            netbird_command = ["netbird", "service", "start"]
             subprocess.Popen(
                 netbird_command,
                 stdout=subprocess.PIPE,
