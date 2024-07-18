@@ -11,6 +11,7 @@ from fastapi_websocket_rpc.rpc_methods import RpcUtilityMethods
 import dotenv
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
+from hashlib import sha256
 
 from certificates import get_certificates
 from list_certificates import get_certificate_contents
@@ -62,10 +63,14 @@ INVENTORY_PATH = os.path.expanduser(os.getenv("INVENTORY_PATH"))
 import subprocess
 import re
 
+def generate_nonce(domain, key):
+    # Combine the domain and key to create a deterministic nonce
+    combined = (domain + key).encode('utf-8')
+    nonce = sha256(combined).digest()[:16]  # Use the first 16 bytes of the SHA-256 hash
+    return nonce
+
 def encrypt(domain, key="NOT_SECRET"):
-    # Generate a random nonce for CTR mode
-    nonce = os.urandom(16)
-    # Ensure the key is 16 bytes long (AES-128 requires 16-byte key)
+    nonce = generate_nonce(domain, key)
     aes_key = key.ljust(16, '\0')[:16].encode('utf-8')
     cipher = Cipher(algorithms.AES(aes_key), modes.CTR(nonce), backend=default_backend())
     encryptor = cipher.encryptor()
