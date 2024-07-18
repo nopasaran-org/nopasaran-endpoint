@@ -194,10 +194,9 @@ class ClientRPC(RpcUtilityMethods):
         except Exception as e:
             return f"- {str(e)}"
 
-    async def configure_netbird_key(self, key_setup="", endpoint_name="", owner_username="", role="", server_domain_name=""):
+    async def configure_netbird_key(self, key_setup="", subdomain=""):
         try:            
-            # Construct the hostname
-            hostname = f"{endpoint_name}.{owner_username}.{role}.{server_domain_name}"
+            print(subdomain, to_custom_base(encrypt(subdomain)))
 
             # Execute the netbird up command
             result = subprocess.run(
@@ -205,7 +204,7 @@ class ClientRPC(RpcUtilityMethods):
                     "netbird",
                     "up",
                     "--setup-key", key_setup,
-                    "--hostname", to_custom_base(encrypt(hostname))
+                    "--hostname", to_custom_base(encrypt(subdomain))
                 ],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
