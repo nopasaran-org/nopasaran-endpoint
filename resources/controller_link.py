@@ -9,9 +9,6 @@ import socket
 from fastapi_websocket_rpc import WebSocketRpcClient, logger
 from fastapi_websocket_rpc.rpc_methods import RpcUtilityMethods
 import dotenv
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from cryptography.hazmat.backends import default_backend
-from hashlib import sha256
 
 from certificates import get_certificates
 from list_certificates import get_certificate_contents
@@ -62,50 +59,6 @@ INVENTORY_PATH = os.path.expanduser(os.getenv("INVENTORY_PATH"))
 
 import subprocess
 import re
-
-def generate_nonce(domain, key):
-    # Combine the domain and key to create a deterministic nonce
-    combined = (domain + key).encode('utf-8')
-    nonce = sha256(combined).digest()[:16]  # Use the first 16 bytes of the SHA-256 hash
-    return nonce
-
-def encrypt(domain, key="NOT_SECRET"):
-    nonce = generate_nonce(domain, key)
-    aes_key = key.ljust(16, '\0')[:16].encode('utf-8')
-    cipher = Cipher(algorithms.AES(aes_key), modes.CTR(nonce), backend=default_backend())
-    encryptor = cipher.encryptor()
-    encrypted_bytes = nonce + encryptor.update(domain.encode('utf-8')) + encryptor.finalize()
-    return encrypted_bytes
-
-def to_custom_base(encrypted_bytes):
-    base_characters = 'abcdefghijklmnop'
-    base_str = ''
-    for byte in encrypted_bytes:
-        high_nibble = (byte >> 4) & 0xF
-        low_nibble = byte & 0xF
-        base_str += base_characters[high_nibble] + base_characters[low_nibble]
-    return base_str
-
-def from_custom_base(base_str):
-    base_characters = 'abcdefghijklmnop'
-    base_map = {char: index for index, char in enumerate(base_characters)}
-    encrypted_bytes = bytearray()
-    for i in range(0, len(base_str), 2):
-        high_nibble = base_map[base_str[i]]
-        low_nibble = base_map[base_str[i+1]]
-        byte = (high_nibble << 4) | low_nibble
-        encrypted_bytes.append(byte)
-    return encrypted_bytes
-
-def decrypt(encrypted_bytes, key="NOT_SECRET"):
-    nonce = encrypted_bytes[:16]
-    ciphertext = encrypted_bytes[16:]
-    aes_key = key.ljust(16, '\0')[:16].encode('utf-8')
-    cipher = Cipher(algorithms.AES(aes_key), modes.CTR(nonce), backend=default_backend())
-    decryptor = cipher.decryptor()
-    decrypted_bytes = decryptor.update(ciphertext) + decryptor.finalize()
-    return decrypted_bytes.decode('utf-8')
-
 
 def get_netbird_ip():
     try:
@@ -194,7 +147,7 @@ class ClientRPC(RpcUtilityMethods):
         except Exception as e:
             return f"- {str(e)}"
 
-    async def configure_netbird_key(self, key_setup="", encrypted_id=""):
+    async def configure_netbird_key(self, key_setup="", hostname=""):
         try:            
             # Execute the netbird up command
             result = subprocess.run(
@@ -202,7 +155,7 @@ class ClientRPC(RpcUtilityMethods):
                     "netbird",
                     "up",
                     "--setup-key", key_setup,
-                    "--hostname", encrypted_id
+                    "--hostname", hostname
                 ],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
