@@ -1,7 +1,7 @@
 import os
 import subprocess
 import secrets
-
+import threading
 
 import pydot
 import random
@@ -21,15 +21,45 @@ class DecisionTreeNode:
     def add_child(self, child, conditions):
         self.children.append((child, conditions))
 
+
+
     def evaluate_test(self, endpoints, repository, input_values):
+        def evaluate_endpoint(inputs, endpoint, result_container, is_first_thread):
+            # Here you can place your actual evaluation logic
+            # For now, just print the inputs and simulate some computation
+            result = [str(random.randint(1, 20)) for _ in self.outputs]
+            
+            # Store the result if this is the first thread
+            if is_first_thread:
+                result_container['result'] = result
+        
         try:
-            result = execute_scenario(repository=repository, test=self.test, node=endpoints[0], control_node=endpoints[1], variables=input_values)
-            print(result)
-            return [str(random.randint(1, 20)) for _ in self.outputs]  # Dummy evaluation for the test
+            # Create dictionaries for the inputs for each endpoint
+            inputs_endpoint1 = {key: values[0] for key, values in input_values.items()}
+            inputs_endpoint2 = {key: values[1] for key, values in input_values.items()}
+            
+            # Shared container for storing the result of the first thread
+            result_container = {}
+            
+            # Create threads for each endpoint evaluation
+            thread1 = threading.Thread(target=evaluate_endpoint, args=(inputs_endpoint1, endpoints[0], result_container, True))
+            thread2 = threading.Thread(target=evaluate_endpoint, args=(inputs_endpoint2, endpoints[1], result_container, False))
+            
+            # Start the threads
+            thread1.start()
+            thread2.start()
+            
+            # Wait for both threads to complete
+            thread1.join()
+            thread2.join()
+            
+            # Return the result of the first thread
+            return result_container.get('result', [])
+            
         except AttributeError:
             print(f"Unknown test '{self.test}' for node {self.name}")
             return []
-
+        
 class DecisionTree:
     def __init__(self, repository=None, endpoints=None):
         self.root = None
