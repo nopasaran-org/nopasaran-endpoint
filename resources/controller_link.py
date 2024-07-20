@@ -1,7 +1,6 @@
 import os
 import subprocess
 import logging
-import subprocess
 import sys
 import asyncio
 import socket
@@ -140,7 +139,7 @@ class ClientRPC(RpcUtilityMethods):
         try:
             campaign_files = fetch_png_files_from_github(repository)
             campaign_content = download_png_by_name(campaign_files, campaign)
-            tree = DecisionTree()
+            tree = DecisionTree(endpoints=nodes)
             tree.load_from_png_content(campaign_content)
             final_output = tree.evaluate_tree(variables)
             return f"+ {final_output}"

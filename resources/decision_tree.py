@@ -1,3 +1,8 @@
+import os
+import subprocess
+import secrets
+
+
 import pydot
 import random
 from PIL import Image, PngImagePlugin
@@ -5,29 +10,31 @@ from io import BytesIO
 import requests
 
 class DecisionTreeNode:
-    def __init__(self, name, label, inputs=None, outputs=None, scenario=None, default_input_values=None):
+    def __init__(self, name, inputs=None, outputs=None, test=None, default_input_values=None):
         self.name = name
-        self.label = label
         self.inputs = inputs if inputs else []
         self.outputs = outputs if outputs else []
-        self.scenario = scenario
+        self.test = test
         self.children = []
         self.default_input_values = default_input_values if default_input_values else {}
 
     def add_child(self, child, conditions):
         self.children.append((child, conditions))
 
-    def evaluate_scenario(self, input_values):
+    def evaluate_test(self, endpoints, repository, input_values):
         try:
-            return [str(random.randint(1, 20)) for _ in self.outputs]  # Dummy evaluation for the scenario
+            result = execute_scenario(repository=repository, test=self.test, node=endpoints[0], control_node=endpoints[1], variables=input_values)
+            print(result)
+            return [str(random.randint(1, 20)) for _ in self.outputs]  # Dummy evaluation for the test
         except AttributeError:
-            print(f"Unknown scenario '{self.scenario}' for node {self.name}")
+            print(f"Unknown test '{self.test}' for node {self.name}")
             return []
 
 class DecisionTree:
-    def __init__(self, repository=None):
+    def __init__(self, repository=None, endpoints=None):
         self.root = None
         self.repository = repository
+        self.endpoints = endpoints if endpoints else []
 
     def add_root(self, node):
         self.root = node
@@ -72,13 +79,13 @@ class DecisionTree:
 
         for node in graph.get_nodes():
             name = node.get_name().strip('"')
-            label = node.get_attributes()['label'].strip('"')
             inputs = []
             outputs = []
-            scenario = None
+            test = None
             default_input_values = {}
 
-            # Parse the label to extract inputs, outputs, and scenario
+            # Parse the label to extract inputs, outputs, and test
+            label = node.get_attributes()['label'].strip('"')
             label_parts = label.split('\\n')
             main_label = label_parts[0]
 
@@ -90,10 +97,10 @@ class DecisionTree:
                 elif part.startswith('Outputs: '):
                     outputs_str = part.replace('Outputs: ', '').replace("[", "").replace("]", "")
                     outputs = outputs_str.split(', ')
-                elif part.startswith('Scenario: '):
-                    scenario = part.replace('Scenario: ', '').strip()
+                elif part.startswith('Test: '):
+                    test = part.replace('Test: ', '').strip()
 
-            nodes[name] = DecisionTreeNode(name, main_label, inputs, outputs, scenario, default_input_values)
+            nodes[name] = DecisionTreeNode(name, inputs, outputs, test, default_input_values)
 
         for edge in graph.get_edges():
             parent_name = edge.get_source().strip('"')
@@ -118,13 +125,14 @@ class DecisionTree:
         formatted_inputs = self._format_inputs(node.inputs, node_default_inputs)
         default_inputs_str = ', '.join(formatted_inputs) if formatted_inputs else ''
         
-        node_label = f'{node.label}'
+        # Use node's name instead of label for node_label
+        node_label = f'{node.name}'
         if default_inputs_str:
             node_label += f'\nInputs: [{default_inputs_str}]'
         if node.outputs:
             node_label += f'\nOutputs: [{", ".join(node.outputs)}]'
-        if node.scenario:
-            node_label += f'\nScenario: {node.scenario}'
+        if node.test:
+            node_label += f'\nTest: {node.test}'
         
         node_attributes = {
             'label': node_label,
@@ -170,7 +178,7 @@ class DecisionTree:
         else:
             merged_input_values = node.default_input_values
 
-        output_values = node.evaluate_scenario(merged_input_values)
+        output_values = node.evaluate_test(self.endpoints, self.repository, merged_input_values)
         for idx, output_name in enumerate(node.outputs):
             merged_input_values[output_name] = output_values[idx]
 
@@ -240,8 +248,7 @@ def download_png_by_name(png_files, file_name):
 
 
 
-"""
-async def execute_scenario(self, repository="", scenario="", node="", control_node="", variables=""):
+def execute_scenario(repository="", test="", node="", control_node="", variables=""):
     try:
         final_output_directory = secrets.token_hex(6)
 
@@ -253,7 +260,7 @@ async def execute_scenario(self, repository="", scenario="", node="", control_no
                 "-i",
                 f"{node}:1963,",
                 "--extra-vars",
-                f'{{"github_repo_url":"{repository}", "scenario_folder":"{scenario}", "final_output_directory":"{final_output_directory}", "remote_control_channel_end":"{control_node}", "variables":{variables}}}',
+                f'{{"github_repo_url":"{repository}", "scenario_folder":"{test}", "final_output_directory":"{final_output_directory}", "remote_control_channel_end":"{control_node}", "variables":{variables}}}',
             ],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -272,5 +279,3 @@ async def execute_scenario(self, repository="", scenario="", node="", control_no
         return f"+ {', '.join(log_contents)}"  # Join log contents with a comma or any other separator
     except Exception as e:
         return f"- {str(e)}"
-    
-"""
