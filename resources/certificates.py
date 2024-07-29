@@ -279,40 +279,40 @@ def retrieve_x509_certificate():
     if response.status_code == 200:
         content = json_loader.loads(response.content.decode()).get("certificate").encode()
         save_response_to_file(content, os.getenv('X509_PATH'), os.getenv('X509_FILENAME_CERTIFICATE'))
-        create_x509_certificate_chain()
+        create_x509_private_certificate()
     else:
         logger.error(f"Request failed with status code: {response.status_code}")
         logger.error(f"Error message: {response.text}")
 
 
-def create_x509_certificate_chain():
+def create_x509_private_certificate():
     # Get environment variables
     x509_folder_path = os.getenv('X509_PATH')
     x509_certificate_filename = os.getenv('X509_FILENAME_CERTIFICATE')
-    x509_ca_filename = os.getenv('X509_FILENAME_CA')
-    x509_chain_filename = os.getenv('X509_FILENAME_CHAIN_CRT')
+    x509_private_filename = os.getenv('X509_FILENAME_PRIVATE')
+    x509_private_crt_filename = os.getenv('X509_FILENAME_PRIVATE_CRT')
 
     # Construct full file paths
     certificate_path = os.path.join(x509_folder_path, x509_certificate_filename)
-    ca_path = os.path.join(x509_folder_path, x509_ca_filename)
-    chain_path = os.path.join(x509_folder_path, x509_chain_filename)
+    private_path = os.path.join(x509_folder_path, x509_private_filename)
+    private_crt_path = os.path.join(x509_folder_path, x509_private_crt_filename)
 
     # Read the certificate file
     with open(certificate_path, 'r') as cert_file:
         certificate_content = cert_file.read()
 
     # Read the CA file
-    with open(ca_path, 'r') as ca_file:
-        ca_content = ca_file.read()
+    with open(private_path, 'r') as private_file:
+        private_content = private_file.read()
 
     # Concatenate the certificate and CA contents
-    chain_content = ca_content + certificate_content
+    private_crt_content = private_content + certificate_content
 
     # Write the concatenated content to the chain file
-    with open(chain_path, 'w') as chain_file:
-        chain_file.write(chain_content)
+    with open(private_crt_path, 'w') as private_crt_file:
+        private_crt_file.write(private_crt_content)
 
-    logger.info(f"Certificate chain created at {chain_path}")
+    logger.info(f"Certificate chain created at {private_crt_path}")
 
 
 
