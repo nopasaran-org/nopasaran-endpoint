@@ -9,7 +9,7 @@ from PIL import Image, PngImagePlugin
 from io import BytesIO
 import requests
 
-class DecisionTreeNode:
+class TestsTreeNode:
     def __init__(self, name, inputs=None, outputs=None, test=None, default_input_values=None):
         self.name = name
         self.inputs = inputs if inputs else []
@@ -60,7 +60,7 @@ class DecisionTreeNode:
             print(f"Unknown test '{self.test}' for node {self.name}")
             return []
         
-class DecisionTree:
+class TestsTree:
     def __init__(self, repository=None, endpoints=None):
         self.root = None
         self.repository = repository
@@ -130,7 +130,7 @@ class DecisionTree:
                 elif part.startswith('Test: '):
                     test = part.replace('Test: ', '').strip()
 
-            nodes[name] = DecisionTreeNode(name, inputs, outputs, test, default_input_values)
+            nodes[name] = TestsTreeNode(name, inputs, outputs, test, default_input_values)
 
         for edge in graph.get_edges():
             parent_name = edge.get_source().strip('"')
@@ -235,14 +235,14 @@ class DecisionTree:
         image = Image.open(BytesIO(png_str))
 
         metadata = PngImagePlugin.PngInfo()
-        metadata.add_text("DecisionTree", graph.to_string())
+        metadata.add_text("TestsTree", graph.to_string())
         metadata.add_text("Repository", self.repository)
 
         image.save(filename, "PNG", pnginfo=metadata)
 
     def load_from_png(self, filename):
         image = Image.open(filename)
-        metadata = image.info.get("DecisionTree")
+        metadata = image.info.get("TestsTree")
         repository = image.info.get("Repository")
         if metadata:
             self.from_dot(metadata)
@@ -252,7 +252,7 @@ class DecisionTree:
     def load_from_png_content(self, png_content):
         with BytesIO(png_content) as file:
             image = Image.open(file)
-            metadata = image.info.get("DecisionTree")
+            metadata = image.info.get("TestsTree")
             repository = image.info.get("Repository")
             if metadata:
                 self.from_dot(metadata)

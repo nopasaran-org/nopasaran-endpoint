@@ -11,7 +11,7 @@ import dotenv
 
 from certificates import get_certificates
 from list_certificates import get_certificate_contents
-from decision_tree import DecisionTree, download_png_by_name, fetch_png_files_from_github
+from tests_tree import TestsTree, download_png_by_name, fetch_png_files_from_github
 
 # Load the .env file, but don't override existing environment variables
 dotenv.load_dotenv('/app/resources/config.env', override=False)
@@ -139,7 +139,7 @@ class ClientRPC(RpcUtilityMethods):
         try:
             campaign_files = fetch_png_files_from_github(repository)
             campaign_content = download_png_by_name(campaign_files, campaign)
-            tree = DecisionTree(endpoints=nodes)
+            tree = TestsTree(endpoints=nodes)
             tree.load_from_png_content(campaign_content)
             final_output = tree.evaluate_tree(variables)
             return f"+ {final_output}"
