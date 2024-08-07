@@ -278,7 +278,7 @@ def download_png_by_name(png_files, file_name):
 
 
 
-def execute_scenario(repository="", test="", node="", control_node="", variables=""):
+def execute_test(repository="", test="", node="", control_node="", variables=""):
     try:
         final_output_directory = secrets.token_hex(6)
 
@@ -286,11 +286,11 @@ def execute_scenario(repository="", test="", node="", control_node="", variables
         result = subprocess.run(
             [
                 "ansible-playbook",
-                "/ansible/remote_scenario.yml",
+                "/ansible/remote_test.yml",
                 "-i",
                 f"{node}:1963,",
                 "--extra-vars",
-                f'{{"github_repo_url":"{repository}", "scenario_folder":"{test}", "final_output_directory":"{final_output_directory}", "remote_control_channel_end":"{control_node}", "variables":{variables}}}',
+                f'{{"github_repo_url":"{repository}", "test_folder":"{test}", "final_output_directory":"{final_output_directory}", "remote_control_channel_end":"{control_node}", "variables":{variables}}}',
             ],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,

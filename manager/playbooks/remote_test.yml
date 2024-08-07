@@ -8,9 +8,9 @@
       set_fact:
         random_folder_name: "{{ 'nopasaran_' + ansible_date_time.iso8601_micro + '_' + lookup('password', '/dev/null chars=ascii_letters,digits length=12') }}"
 
-    - name: Create the full path for the scenario folder
+    - name: Create the full path for the test folder
       set_fact:
-        scenario_full_path: "/tmp/{{ random_folder_name }}/{{ scenario_folder }}"
+        test_full_path: "/tmp/{{ random_folder_name }}/{{ test_folder }}"
 
     - name: Clone the GitHub repository
       git:
@@ -22,7 +22,7 @@
     - name: Create variables.json file
       copy:
         content: "{{ variables | to_json }}"
-        dest: "{{ scenario_full_path }}/variables.json"
+        dest: "{{ test_full_path }}/variables.json"
       when: variables is defined
 
     - name: Create controller_configuration.json file
@@ -34,19 +34,19 @@
             "DESTINATION_IP": "{{ remote_control_channel_end }}",
             "SERVER_PORT": "1957"
           }
-        dest: "{{ scenario_full_path }}/controller_configuration.json"
+        dest: "{{ test_full_path }}/controller_configuration.json"
 
     - name: Ensure /app/venv/bin is in the PATH
       shell: |
         export PATH=/app/venv/bin:$PATH
-        nopasaran -s {{ scenario_full_path }}/scenario.json -ll debug
+        nopasaran -t {{ test_full_path }}/test.json -ll debug
       args:
-        chdir: "{{ scenario_full_path }}"
+        chdir: "{{ test_full_path }}"
       register: execution_result
 
     - name: Copy logs to the local machine
       fetch:
-        src: "{{ scenario_full_path }}/conf.log"
+        src: "{{ test_full_path }}/conf.log"
         dest: "/results/{{ final_output_directory }}/conf.log"
         flat: yes
         remote_src: yes
