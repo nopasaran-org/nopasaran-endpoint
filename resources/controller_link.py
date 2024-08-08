@@ -144,6 +144,7 @@ class ClientRPC(RpcUtilityMethods):
             final_output = tree.evaluate_tree(variables)
             return f"+ {final_output}"
         except Exception as e:
+            print(e)
             return f"- {str(e)}"
 
     async def configure_netbird_key(self, key_setup="", hostname=""):

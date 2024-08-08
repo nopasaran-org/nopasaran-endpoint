@@ -21,29 +21,26 @@ class TestsTreeNode:
     def add_child(self, child, conditions):
         self.children.append((child, conditions))
 
-
-
     def evaluate_test(self, endpoints, repository, input_values):
-        def evaluate_endpoint(inputs, endpoint, result_container, is_first_thread):
+        def evaluate_endpoint(inputs, node, control_node, repository):
             # Here you can place your actual evaluation logic
             # For now, just print the inputs and simulate some computation
-            result = [str(random.randint(1, 20)) for _ in self.outputs]
+
+            execute_test(repository=repository, test=self.test, node=node, control_node=control_node, variables=inputs)
             
-            # Store the result if this is the first thread
-            if is_first_thread:
-                result_container['result'] = result
         
-        try:
-            # Create dictionaries for the inputs for each endpoint
-            inputs_endpoint1 = {key: values[0] for key, values in input_values.items()}
-            inputs_endpoint2 = {key: values[1] for key, values in input_values.items()}
+        try:            
+            # Iterate over the input values and populate the endpoint dictionaries
+            for key, value in input_values.items():
+                if key == 'endpoint_1':
+                    inputs_endpoint1 = value
+                elif key == 'endpoint_2':
+                    inputs_endpoint2 = value
             
-            # Shared container for storing the result of the first thread
-            result_container = {}
-            
+        
             # Create threads for each endpoint evaluation
-            thread1 = threading.Thread(target=evaluate_endpoint, args=(inputs_endpoint1, endpoints[0], result_container, True))
-            thread2 = threading.Thread(target=evaluate_endpoint, args=(inputs_endpoint2, endpoints[1], result_container, False))
+            thread1 = threading.Thread(target=evaluate_endpoint, args=(inputs_endpoint1, endpoints[0], endpoints[1],repository))
+            thread2 = threading.Thread(target=evaluate_endpoint, args=(inputs_endpoint2, endpoints[1], endpoints[0],repository))
             
             # Start the threads
             thread1.start()
@@ -52,6 +49,8 @@ class TestsTreeNode:
             # Wait for both threads to complete
             thread1.join()
             thread2.join()
+
+            return [str(random.randint(1, 20)) for _ in self.outputs] # Dummy evaluation for the example
             
             # Return the result of the first thread
             return result_container.get('result', [])
@@ -101,8 +100,6 @@ class TestsTree:
     def from_dot(self, dot_string):
         graph = pydot.graph_from_dot_data(dot_string)[0]
         nodes = {}
-
-        # Extract repository from graph label
         repository_label = graph.get_label()
         if repository_label:
             self.repository = repository_label.replace('Repository: ', '').strip()
@@ -113,17 +110,17 @@ class TestsTree:
             outputs = []
             test = None
             default_input_values = {}
-
-            # Parse the label to extract inputs, outputs, and test
-            label = node.get_attributes()['label'].strip('"')
-            label_parts = label.split('\\n')
-            main_label = label_parts[0]
+            label = node.get_attributes()['label'].strip('"').replace('\\n', '\n')
+            label_parts = label.split('\n')
 
             for part in label_parts[1:]:
                 if part.startswith('Inputs: ['):
                     inputs_str = part.replace('Inputs: [', '').replace(']', '')
                     inputs = [inp.split('=')[0].strip() for inp in inputs_str.split(',')]
-                    default_input_values = {inp.split('=')[0].strip(): int(inp.split('=')[1].strip()) for inp in inputs_str.split(',') if '=' in inp}
+                    try:
+                        default_input_values = {inp.split('=')[0].strip(): eval("=".join(inp.split('=')[1:]).strip()) for inp in inputs_str.split(',') if '=' in inp}
+                    except SyntaxError as e:
+                        print(f"Error parsing default input values: {e}")
                 elif part.startswith('Outputs: '):
                     outputs_str = part.replace('Outputs: ', '').replace("[", "").replace("]", "")
                     outputs = outputs_str.split(', ')
@@ -282,16 +279,23 @@ def execute_test(repository="", test="", node="", control_node="", variables="")
     try:
         final_output_directory = secrets.token_hex(6)
 
-        # Execute the Ansible playbook for the campaign
+        command = [
+            "ansible-playbook",
+            "/ansible/remote_test.yml",
+            "-i",
+            f"{node}:1963,",
+            "--extra-vars",
+            f'{{"github_repo_url":"{repository}", "test_folder":"{test}", "final_output_directory":"{final_output_directory}", "remote_control_channel_end":"{control_node}", "variables":{variables}}}',
+        ]
+
+        # Convert the command list to a formatted string
+        formatted_command = ' '.join(command)
+
+        print("Running command:")
+        print(formatted_command)
+
         result = subprocess.run(
-            [
-                "ansible-playbook",
-                "/ansible/remote_test.yml",
-                "-i",
-                f"{node}:1963,",
-                "--extra-vars",
-                f'{{"github_repo_url":"{repository}", "test_folder":"{test}", "final_output_directory":"{final_output_directory}", "remote_control_channel_end":"{control_node}", "variables":{variables}}}',
-            ],
+            command,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True

@@ -29,8 +29,8 @@
       copy:
         content: |
           {
-            "ROOT_CERTIFICATE": "/x509/ca.crt",
-            "PRIVATE_CERTIFICATE": "/x509/chain.pem",
+            "ROOT_CERTIFICATE": "/x509/ca.pem",
+            "PRIVATE_CERTIFICATE": "/x509/private_crt.pem",
             "DESTINATION_IP": "{{ remote_control_channel_end }}",
             "SERVER_PORT": "1957"
           }
