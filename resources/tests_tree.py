@@ -1,4 +1,7 @@
+import base64
 import os
+import pickle
+import re
 import subprocess
 import secrets
 import threading
@@ -22,25 +25,23 @@ class TestsTreeNode:
         self.children.append((child, conditions))
 
     def evaluate_test(self, endpoints, repository, input_values):
-        def evaluate_endpoint(inputs, node, control_node, repository):
-            # Here you can place your actual evaluation logic
-            # For now, just print the inputs and simulate some computation
-
-            execute_test(repository=repository, test=self.test, node=node, control_node=control_node, variables=inputs)
-            
+        def evaluate_endpoint(inputs, node, control_node, repository, results, endpoint_key):
+            execution_logs = execute_test(repository=repository, test=self.test, node=node, control_node=control_node, variables=inputs)
+            serialized_result_log = extract_base64(execution_logs)
+            result = deserialize_log_data(serialized_result_log)
+            results[endpoint_key] = result  # Store the result in the shared dictionary
         
         try:            
-            # Iterate over the input values and populate the endpoint dictionaries
-            for key, value in input_values.items():
-                if key == 'endpoint_1':
-                    inputs_endpoint1 = value
-                elif key == 'endpoint_2':
-                    inputs_endpoint2 = value
-            
-        
+            # Prepare input values for each endpoint
+            inputs_endpoint1 = input_values.get('endpoint_1')
+            inputs_endpoint2 = input_values.get('endpoint_2')
+
+            # Shared dictionary to store results from threads
+            results = {}
+
             # Create threads for each endpoint evaluation
-            thread1 = threading.Thread(target=evaluate_endpoint, args=(inputs_endpoint1, endpoints[0], endpoints[1],repository))
-            thread2 = threading.Thread(target=evaluate_endpoint, args=(inputs_endpoint2, endpoints[1], endpoints[0],repository))
+            thread1 = threading.Thread(target=evaluate_endpoint, args=(inputs_endpoint1, endpoints[0], endpoints[1], repository, results, 'endpoint_1'))
+            thread2 = threading.Thread(target=evaluate_endpoint, args=(inputs_endpoint2, endpoints[1], endpoints[0], repository, results, 'endpoint_2'))
             
             # Start the threads
             thread1.start()
@@ -50,14 +51,12 @@ class TestsTreeNode:
             thread1.join()
             thread2.join()
 
-            return [str(random.randint(1, 20)) for _ in self.outputs] # Dummy evaluation for the example
-            
-            # Return the result of the first thread
-            return result_container.get('result', [])
+            return [str(random.randint(1, 20)) for _ in self.outputs]
+            return results  # Return the dictionary with results
             
         except AttributeError:
             print(f"Unknown test '{self.test}' for node {self.name}")
-            return []
+            return {}
         
 class TestsTree:
     def __init__(self, repository=None, endpoints=None):
@@ -288,12 +287,6 @@ def execute_test(repository="", test="", node="", control_node="", variables="")
             f'{{"github_repo_url":"{repository}", "test_folder":"{test}", "final_output_directory":"{final_output_directory}", "remote_control_channel_end":"{control_node}", "variables":{variables}}}',
         ]
 
-        # Convert the command list to a formatted string
-        formatted_command = ' '.join(command)
-
-        print("Running command:")
-        print(formatted_command)
-
         result = subprocess.run(
             command,
             stdout=subprocess.PIPE,
@@ -313,3 +306,43 @@ def execute_test(repository="", test="", node="", control_node="", variables="")
         return f"+ {', '.join(log_contents)}"  # Join log contents with a comma or any other separator
     except Exception as e:
         return f"- {str(e)}"
+    
+def extract_base64(log_string):
+    # Regex pattern to match the base64 encoded string
+    base64_pattern = r'(?<=\[Result\] )(\S+)'
+    
+    # Search for the base64 pattern in the log string
+    match = re.search(base64_pattern, log_string)
+    
+    # If a match is found, return the base64 string
+    if match:
+        return match.group(1)
+    else:
+        return None
+    
+def deserialize_log_data(base64_data):
+    def deserialize_object(base64_string):
+        try:
+            # Decode the base64 string to a byte stream
+            byte_stream = base64.b64decode(base64_string)
+            # Deserialize the byte stream to the original object
+            obj = pickle.loads(byte_stream)
+            return obj
+        except Exception as e:
+            return None
+
+    def deserialize_value(value):
+        if value is None:
+            return None
+        if isinstance(value, dict):
+            return {k: deserialize_value(v) for k, v in value.items()}
+        return deserialize_object(value)
+    
+    try:
+        # Decode the base64 data to a byte stream
+        byte_stream = base64.b64decode(base64_data)
+        # Deserialize the byte stream to the serialized data
+        serialized_data = pickle.loads(byte_stream)
+        return {k: deserialize_value(v) for k, v in serialized_data.items()}
+    except Exception as e:
+        return None

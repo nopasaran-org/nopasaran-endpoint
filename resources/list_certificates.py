@@ -26,7 +26,6 @@ def get_certificate_contents():
         "other_ca_cert_path": os.path.join(OTHER_CA_OUTPUT_PATH, OTHER_CA_OUTPUT_FILENAME) if OTHER_CA_OUTPUT_PATH and OTHER_CA_OUTPUT_FILENAME else None,
         "own_ca_cert_path": os.path.join(OWN_CA_OUTPUT_PATH, OWN_CA_OUTPUT_FILENAME) if OWN_CA_OUTPUT_PATH and OWN_CA_OUTPUT_FILENAME else None,
         "x509_ca_certificate_path": os.path.join(X509_PATH, X509_FILENAME_CA) if X509_PATH and X509_FILENAME_CA else None,
-        "x509_private_certificate_path": os.path.join(X509_PATH, X509_FILENAME_PRIVATE_CRT) if X509_PATH and X509_FILENAME_PRIVATE_CRT else None
     }
 
     # Initialize an empty list to store certificate contents
