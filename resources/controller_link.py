@@ -139,12 +139,11 @@ class ClientRPC(RpcUtilityMethods):
         try:
             campaign_files = fetch_png_files_from_github(repository)
             campaign_content = download_png_by_name(campaign_files, campaign)
-            tree = TestsTree(endpoints=nodes)
+            tree = TestsTree(workers=nodes)
             tree.load_from_png_content(campaign_content)
             final_output = tree.evaluate_tree(variables)
             return f"+ {final_output}"
         except Exception as e:
-            print(e)
             return f"- {str(e)}"
 
     async def configure_netbird_key(self, key_setup="", hostname=""):
