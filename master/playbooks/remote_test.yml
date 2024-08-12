@@ -1,0 +1,52 @@
+---
+- name: Execute Python script on host
+  hosts: all
+  remote_user: master
+
+  tasks:
+    - name: Generate a random folder name
+      set_fact:
+        random_folder_name: "{{ 'nopasaran_' + ansible_date_time.iso8601_micro + '_' + lookup('password', '/dev/null chars=ascii_letters,digits length=12') }}"
+
+    - name: Create the full path for the test folder
+      set_fact:
+        test_full_path: "/tmp/{{ random_folder_name }}/{{ test_folder }}"
+
+    - name: Clone the GitHub repository
+      git:
+        repo: "{{ github_repo_url }}"
+        dest: "/tmp/{{ random_folder_name }}"
+        version: main
+      register: git_clone_result
+
+    - name: Create variables.json file
+      copy:
+        content: "{{ variables | to_json }}"
+        dest: "{{ test_full_path }}/variables.json"
+      when: variables is defined
+
+    - name: Create controller_configuration.json file
+      copy:
+        content: |
+          {
+            "ROOT_CERTIFICATE": "/x509/ca.pem",
+            "PRIVATE_CERTIFICATE": "/x509/private_crt.pem",
+            "DESTINATION_IP": "{{ remote_control_channel_end }}",
+            "SERVER_PORT": "1957"
+          }
+        dest: "{{ test_full_path }}/controller_configuration.json"
+
+    - name: Ensure /app/venv/bin is in the PATH
+      shell: |
+        export PATH=/app/venv/bin:$PATH
+        nopasaran -t {{ test_full_path }}/test.json -ll info
+      args:
+        chdir: "{{ test_full_path }}"
+      register: execution_result
+
+    - name: Copy logs to the local machine
+      fetch:
+        src: "{{ test_full_path }}/conf.log"
+        dest: "/results/{{ final_output_directory }}/conf.log"
+        flat: yes
+        remote_src: yes
