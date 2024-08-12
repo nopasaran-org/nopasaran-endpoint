@@ -24,8 +24,8 @@ HOST = "HOST"
 X509 = "X509"
 OWN = "OWN"
 OTHER = "OTHER"
-NODE = "node"
-MANAGER = "manager"
+WORKER = "worker"
+MASTER = "master"
 
 # Configure the logging module
 logging.basicConfig(format='%(asctime)s - %(levelname)s: %(message)s', datefmt='%Y-%m-%d %H:%M:%S', level=logging.INFO)
@@ -96,13 +96,13 @@ def generate_new_ssh_key(certificate_type, key_size=4096, exponent=65537):
     save_response_to_file(public_key_ssh, input_path, input_filename_public)
 
 def retrieve_ssh_ca_certificate(certificate_type):
-    if ROLE in [NODE, MANAGER]:
+    if ROLE in [WORKER, MASTER]:
             if certificate_type == ROLE:
                 variable_certificate_suffix = OWN
             else:
                 variable_certificate_suffix = OTHER
     else:
-        raise ValueError("Invalid role specified. Role must be 'node' or 'manager'.")
+        raise ValueError("Invalid role specified. Role must be 'worker' or 'master'.")
     
 
     # Get the API domain from the [server] section
@@ -122,7 +122,7 @@ def retrieve_ssh_ca_certificate(certificate_type):
         # Set the truos.path.expanduser(retrieve_ca_config["output_path"]), retrieve_ca_config["output_filename"]sted CA file permissions to be readable only by the owner (600)
         os.chmod(ca_authority_path, 0o600)
         if variable_certificate_suffix == OWN:
-            update_ssh_client_config(MANAGER if ROLE == NODE else NODE)
+            update_ssh_client_config(MASTER if ROLE == WORKER else WORKER)
         elif  variable_certificate_suffix == OTHER:
             domain_suffix = os.getenv('OTHER_CA_DOMAIN_SUFFIX')
             ca_authority_line = f"@cert-authority *.{certificate_type}.{domain_suffix} {response.content.decode()}\n"
@@ -147,12 +147,12 @@ def retrieve_ssh_certificate(certificate_type):
         }
     
     # Add role-specific certificate type
-    if ROLE == NODE:
+    if ROLE == WORKER:
         json["certificate_type"] = "0" if certificate_type == USER else "1"
-    elif ROLE == MANAGER:
+    elif ROLE == MASTER:
         json["certificate_type"] = "2" if certificate_type == USER else "3"
     else:
-        raise ValueError("Invalid role specified. Role must be 'node' or 'manager'.")
+        raise ValueError("Invalid role specified. Role must be 'worker' or 'master'.")
 
     # Check if the 'generate' field is set to 1 to generate a new key
     if os.getenv(f'{certificate_type}_GENERATE') == "1":
@@ -512,11 +512,11 @@ def get_certificates():
         # Example usage to retrieve a host certificate
         tasks.append(executor.submit(retrieve_ssh_certificate, HOST))
 
-        # Example usage to retrieve a node CA certificate
-        tasks.append(executor.submit(retrieve_ssh_ca_certificate, NODE))
+        # Example usage to retrieve a worker CA certificate
+        tasks.append(executor.submit(retrieve_ssh_ca_certificate, WORKER))
 
-        # Example usage to retrieve a manager CA certificate
-        tasks.append(executor.submit(retrieve_ssh_ca_certificate, MANAGER))
+        # Example usage to retrieve a master CA certificate
+        tasks.append(executor.submit(retrieve_ssh_ca_certificate, MASTER))
 
         # Example usage to retrieve a X509 certificate
         tasks.append(executor.submit(retrieve_x509_certificate))

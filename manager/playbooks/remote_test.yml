@@ -1,7 +1,7 @@
 ---
 - name: Execute Python script on host
   hosts: all
-  remote_user: manager
+  remote_user: master
 
   tasks:
     - name: Generate a random folder name

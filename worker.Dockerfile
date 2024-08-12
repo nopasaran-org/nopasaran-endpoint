@@ -1,19 +1,35 @@
-# Use a base image with Ansible pre-installed (e.g., Ubuntu)
+# Use a base image, for example, Ubuntu
 FROM ubuntu:latest
 
 # Set environment variables if needed (e.g., for non-interactive installation)
 ENV DEBIAN_FRONTEND=noninteractive
 
+# Add Docker's official GPG key:
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    curl \
+    gnupg
+RUN install -m 0755 -d /etc/apt/keyrings
+RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+RUN chmod a+r /etc/apt/keyrings/docker.gpg
+
+# Add the repository to Apt sources:
+RUN echo \
+  "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | \
+  tee /etc/apt/sources.list.d/docker.list > /dev/null
+
 # Update and upgrade packages, and install any necessary dependencies
-RUN apt-get update && apt-get upgrade -y && apt-get install -y \ 
+RUN apt-get update && apt-get upgrade -y && apt-get install -y \
+    software-properties-common \
     openssh-client \
     openssh-server \
-    curl \
     python3-pip \
     nano \
-    ansible \
     rsync \
-    net-tools \
+    docker-ce \
+    docker-ce-cli \
+    containerd.io \
     rsyslog \
     git \
     jq \
@@ -46,10 +62,10 @@ RUN python -m pip install --upgrade pip && \
     python -m pip install -r resources/requirements.txt
 
 # Create worker and master users with random passwords of length 20
-RUN useradd -m -s /bin/bash node && \
-    useradd -m -s /bin/bash manager && \
-    echo "node:$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 20 ; echo '')" | chpasswd && \
-    echo "manager:$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 20 ; echo '')" | chpasswd
+RUN useradd -m -s /bin/bash worker && \
+    useradd -m -s /bin/bash master && \
+    echo "worker:$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 20 ; echo '')" | chpasswd && \
+    echo "master:$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 20 ; echo '')" | chpasswd
 
 # Create a directory for SSH host keys
 RUN mkdir /var/run/sshd
@@ -63,19 +79,18 @@ RUN echo 'root:your_password' | chpasswd
 # Change SSH port to 1963 in sshd_config
 RUN sed -i 's/#Port 22/Port 1963/' /etc/ssh/sshd_config
 
+# Add the master user to the docker group
+RUN usermod -aG docker master
+
 # Modify the SSHD configuration file for logging settings
 RUN sed -i 's/#SyslogFacility AUTH/SyslogFacility AUTH/' /etc/ssh/sshd_config && \
     sed -i 's/#LogLevel INFO/LogLevel VERBOSE/' /etc/ssh/sshd_config
 
-# Copy your the scripts into the container
+# Copy the scripts into the container
 COPY entry.sh /app/entry.sh
-
-# Copy your Ansible playbook and inventory files into the container
-COPY /manager/playbooks /ansible/
-COPY /manager/inventory.ini /ansible/
 
 # Make the scripts executable
 RUN chmod +x /app/entry.sh
 
-# By default, sleep to keep the container running for manual interaction
+# Run the entry.sh script when the container starts
 CMD ["/app/entry.sh"]
