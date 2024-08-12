@@ -22,7 +22,7 @@ jobs:
       - name: Log in to Docker Hub
         run: echo ${{ secrets.DOCKER_TOKEN }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
 
-      - name: Build and push Docker image for benilies/nopasaran-node
+      - name: Build and push Docker image for benilies/nopasaran-worker
         run: |
           docker buildx build . \
             --file worker.Dockerfile \
@@ -48,7 +48,7 @@ jobs:
       - name: Log in to Docker Hub
         run: echo ${{ secrets.DOCKER_TOKEN }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
 
-      - name: Build and push Docker image for benilies/nopasaran-manager
+      - name: Build and push Docker image for benilies/nopasaran-master
         run: |
           docker buildx build . \
             --file master.Dockerfile \
