@@ -7,7 +7,7 @@ on:
 
 jobs:
   build-worker-amd:
-    runs-on: Linux_x64
+    runs-on: ubuntu-latest
     steps:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
@@ -27,7 +27,7 @@ jobs:
             --push
 
   build-worker-arm:
-    runs-on: Linux_ARM64
+    runs-on: ubuntu-latest
     steps:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
@@ -47,7 +47,7 @@ jobs:
             --push
 
   build-master-amd:
-    runs-on: Linux_x64
+    runs-on: ubuntu-latest
     steps:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
@@ -67,7 +67,7 @@ jobs:
             --push
 
   build-master-arm:
-    runs-on: Linux_ARM64
+    runs-on: ubuntu-latest
     steps:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
@@ -84,4 +84,84 @@ jobs:
             --file master.Dockerfile \
             --tag benilies/nopasaran-master:latest \
             --platform linux/arm64 \
+            --push
+
+  build-worker-armv7:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Log in to Docker Hub
+        run: echo ${{ secrets.DOCKER_TOKEN }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+
+      - name: Build and push Docker image for benilies/nopasaran-worker
+        run: |
+          docker buildx build . \
+            --file worker.Dockerfile \
+            --tag benilies/nopasaran-worker:latest \
+            --platform linux/arm/v7 \
+            --push
+
+  build-worker-armv8:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Log in to Docker Hub
+        run: echo ${{ secrets.DOCKER_TOKEN }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+
+      - name: Build and push Docker image for benilies/nopasaran-worker
+        run: |
+          docker buildx build . \
+            --file worker.Dockerfile \
+            --tag benilies/nopasaran-worker:latest \
+            --platform linux/arm64/v8 \
+            --push
+
+  build-master-armv7:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Log in to Docker Hub
+        run: echo ${{ secrets.DOCKER_TOKEN }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+
+      - name: Build and push Docker image for benilies/nopasaran-master
+        run: |
+          docker buildx build . \
+            --file master.Dockerfile \
+            --tag benilies/nopasaran-master:latest \
+            --platform linux/arm/v7 \
+            --push
+
+  build-master-armv8:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Log in to Docker Hub
+        run: echo ${{ secrets.DOCKER_TOKEN }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+
+      - name: Build and push Docker image for benilies/nopasaran-master
+        run: |
+          docker buildx build . \
+            --file master.Dockerfile \
+            --tag benilies/nopasaran-master:latest \
+            --platform linux/arm64/v8 \
             --push
