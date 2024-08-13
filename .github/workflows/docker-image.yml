@@ -11,7 +11,11 @@ jobs:
     strategy:
       matrix:
         platform: [linux/amd64, linux/arm64]
-        runner: [Linux_x64, Linux_ARM64]
+        include:
+          - platform: linux/amd64
+            runner: self-hosted, Linux_x64
+          - platform: linux/arm64
+            runner: self-hosted, Linux_ARM64
 
     steps:
       - name: Set up Docker Buildx
@@ -38,7 +42,11 @@ jobs:
     strategy:
       matrix:
         platform: [linux/amd64, linux/arm64]
-        runner: [Linux_x64, Linux_ARM64]
+        include:
+          - platform: linux/amd64
+            runner: self-hosted, Linux_x64
+          - platform: linux/arm64
+            runner: self-hosted, Linux_ARM64
 
     steps:
       - name: Set up Docker Buildx
