@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash 
 
 netbird service start
 pip install --upgrade pip
