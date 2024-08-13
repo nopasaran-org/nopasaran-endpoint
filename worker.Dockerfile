@@ -11,6 +11,7 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     openssh-server \
     python3-pip \
     rsync \
+    curl \
     jq \
     python3-venv \
     libffi-dev \
