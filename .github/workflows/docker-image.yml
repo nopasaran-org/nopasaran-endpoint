@@ -7,10 +7,11 @@ on:
 
 jobs:
   build-worker:
+    runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
-        platform: [amd64, arm64]
-    runs-on: ${{ matrix.platform == 'amd64' && 'Linux_x64' || 'Linux_ARM64' }}
+        platform: [linux/amd64, linux/arm64]
+        runner: [Linux_x64, Linux_ARM64]
 
     steps:
       - name: Set up Docker Buildx
@@ -26,17 +27,18 @@ jobs:
         run: |
           docker buildx build . \
             --file worker.Dockerfile \
-            --tag benilies/nopasaran-node:latest \
-            --platform linux/${{ matrix.platform }} \
+            --tag benilies/nopasaran-worker:latest \
+            --platform ${{ matrix.platform }} \
             --push
         env:
           DOCKER_CLI_AARCH64: 1
 
   build-master:
+    runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
-        platform: [amd64, arm64]
-    runs-on: ${{ matrix.platform == 'amd64' && 'Linux_x64' || 'Linux_ARM64' }}
+        platform: [linux/amd64, linux/arm64]
+        runner: [Linux_x64, Linux_ARM64]
 
     steps:
       - name: Set up Docker Buildx
@@ -52,8 +54,8 @@ jobs:
         run: |
           docker buildx build . \
             --file master.Dockerfile \
-            --tag benilies/nopasaran-manager:latest \
-            --platform linux/${{ matrix.platform }} \
+            --tag benilies/nopasaran-master:latest \
+            --platform ${{ matrix.platform }} \
             --push
         env:
           DOCKER_CLI_AARCH64: 1
