@@ -4,34 +4,13 @@ FROM ubuntu:latest
 # Set environment variables if needed (e.g., for non-interactive installation)
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Add Docker's official GPG key:
-RUN apt-get update && apt-get install -y \
-    ca-certificates \
-    curl \
-    gnupg
-RUN install -m 0755 -d /etc/apt/keyrings
-RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-RUN chmod a+r /etc/apt/keyrings/docker.gpg
-
-# Add the repository to Apt sources:
-RUN echo \
-  "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
-  "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | \
-  tee /etc/apt/sources.list.d/docker.list > /dev/null
-
 # Update and upgrade packages, and install any necessary dependencies
 RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     software-properties-common \
     openssh-client \
     openssh-server \
     python3-pip \
-    nano \
     rsync \
-    docker-ce \
-    docker-ce-cli \
-    containerd.io \
-    rsyslog \
-    git \
     jq \
     python3-venv \
     libffi-dev \

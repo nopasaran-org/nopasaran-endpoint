@@ -10,12 +10,9 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     openssh-server \
     curl \
     python3-pip \
-    nano \
     ansible \
     rsync \
     net-tools \
-    rsyslog \
-    git \
     jq \
     python3-venv \
     libffi-dev \
