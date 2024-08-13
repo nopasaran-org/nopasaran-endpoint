@@ -59,9 +59,6 @@ RUN echo 'root:your_password' | chpasswd
 # Change SSH port to 1963 in sshd_config
 RUN sed -i 's/#Port 22/Port 1963/' /etc/ssh/sshd_config
 
-# Add the master user to the docker group
-RUN usermod -aG docker master
-
 # Modify the SSHD configuration file for logging settings
 RUN sed -i 's/#SyslogFacility AUTH/SyslogFacility AUTH/' /etc/ssh/sshd_config && \
     sed -i 's/#LogLevel INFO/LogLevel VERBOSE/' /etc/ssh/sshd_config
