@@ -6,12 +6,8 @@ on:
       - main
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        architecture: [amd64, arm64]
-        service: [worker, master]
+  build-worker-amd:
+    runs-on: Linux_x64
     steps:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
@@ -22,10 +18,70 @@ jobs:
       - name: Log in to Docker Hub
         run: echo ${{ secrets.DOCKER_TOKEN }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
 
-      - name: Build and push Docker image
+      - name: Build and push Docker image for benilies/nopasaran-worker
         run: |
           docker buildx build . \
-            --file ${{ matrix.service }}.Dockerfile \
-            --tag benilies/nopasaran-${{ matrix.service }}:latest \
-            --platform linux/${{ matrix.architecture }} \
+            --file worker.Dockerfile \
+            --tag benilies/nopasaran-worker:latest \
+            --platform linux/amd64 \
+            --push
+
+  build-worker-arm:
+    runs-on: Linux_ARM64
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Log in to Docker Hub
+        run: echo ${{ secrets.DOCKER_TOKEN }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+
+      - name: Build and push Docker image for benilies/nopasaran-worker
+        run: |
+          docker buildx build . \
+            --file worker.Dockerfile \
+            --tag benilies/nopasaran-worker:latest \
+            --platform linux/arm64 \
+            --push
+
+  build-master-amd:
+    runs-on: Linux_x64
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Log in to Docker Hub
+        run: echo ${{ secrets.DOCKER_TOKEN }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+
+      - name: Build and push Docker image for benilies/nopasaran-master
+        run: |
+          docker buildx build . \
+            --file master.Dockerfile \
+            --tag benilies/nopasaran-master:latest \
+            --platform linux/amd64 \
+            --push
+
+  build-master-arm:
+    runs-on: Linux_ARM64
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Log in to Docker Hub
+        run: echo ${{ secrets.DOCKER_TOKEN }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+
+      - name: Build and push Docker image for benilies/nopasaran-master
+        run: |
+          docker buildx build . \
+            --file master.Dockerfile \
+            --tag benilies/nopasaran-master:latest \
+            --platform linux/arm64 \
             --push
