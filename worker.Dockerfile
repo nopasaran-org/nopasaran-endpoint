@@ -6,16 +6,11 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # Update and upgrade packages, and install any necessary dependencies
 RUN apt-get update && apt-get upgrade -y && apt-get install -y \
-    software-properties-common \
     openssh-client \
     openssh-server \
     python3-pip \
-    rsync \
-    curl \
-    jq \
     python3-venv \
-    libffi-dev \
-    build-essential
+    curl
 
 # Install Netbird
 RUN curl -fsSL https://pkgs.netbird.io/install.sh | sh

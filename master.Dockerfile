@@ -8,15 +8,10 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get upgrade -y && apt-get install -y \ 
     openssh-client \
     openssh-server \
-    curl \
     python3-pip \
-    ansible \
-    rsync \
-    net-tools \
-    jq \
     python3-venv \
-    libffi-dev \
-    build-essential
+    curl \
+    ansible
 
 # Install Netbird
 RUN curl -fsSL https://pkgs.netbird.io/install.sh | sh
