@@ -12,6 +12,8 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     python3-venv \
     curl \
     git \
+    rsync \
+    libffi-dev \
     ansible
 
 # Install Netbird
