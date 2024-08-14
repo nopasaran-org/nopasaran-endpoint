@@ -21,15 +21,13 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     libssl-dev \
     libffi-dev \
     libpq-dev \
+    cargo \
+    rustc \
     ansible
 
 # Install Netbird
 RUN curl -fsSL https://pkgs.netbird.io/install.sh | sh
 RUN rm /etc/netbird/config.json
-
-# Install Rust and Cargo
-RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
-ENV PATH="/root/.cargo/bin:${PATH}"
 
 # Create a directory to copy your "resources" folder into
 WORKDIR /app
@@ -44,8 +42,8 @@ RUN python3 -m venv venv
 ENV PATH="/app/venv/bin:$PATH"
 
 # Update pip and install Python packages from requirements.txt
-#RUN python -m pip install --upgrade pip && \
-#    python -m pip install -r resources/requirements.txt
+RUN python -m pip install --upgrade pip && \
+    python -m pip install -r resources/requirements.txt
 
 # Create worker and master users with random passwords of length 20
 RUN useradd -m -s /bin/bash worker && \
