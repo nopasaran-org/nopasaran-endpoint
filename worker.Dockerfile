@@ -13,7 +13,9 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     git \
     rsync \
     libffi-dev \
-    curl
+    curl \
+    build-essential \
+    jq
 
 # Install Netbird
 RUN curl -fsSL https://pkgs.netbird.io/install.sh | sh

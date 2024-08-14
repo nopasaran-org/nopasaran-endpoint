@@ -14,6 +14,8 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     git \
     rsync \
     libffi-dev \
+    build-essential \
+    jq \
     ansible
 
 # Install Netbird
