@@ -10,6 +10,7 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     openssh-server \
     python3-pip \
     python3-venv \
+    python3-dev \
     curl \
     git \
     rsync \
