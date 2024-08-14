@@ -11,9 +11,9 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     python3-pip \
     python3-venv \
     python3-dev \
+    curl \
     git \
     rsync \
-    curl \
     build-essential \
     jq \
     libjpeg-dev \
