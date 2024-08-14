@@ -23,7 +23,7 @@ jobs:
       - name: Build and push worker (amd64)
         run: |
           docker buildx build --platform linux/amd64 \
-            -t benilies/nopasaran-worker:amd64-${{ github.sha }} \
+            -t benilies/nopasaran-worker:${{ github.sha }}-amd64 \
             -t benilies/nopasaran-worker:amd64-latest \
             --push \
             -f worker.Dockerfile .
@@ -45,7 +45,7 @@ jobs:
       - name: Build and push worker (arm64)
         run: |
           docker buildx build --platform linux/arm64 \
-            -t benilies/nopasaran-worker:arm64-${{ github.sha }} \
+            -t benilies/nopasaran-worker:${{ github.sha }}-arm64 \
             -t benilies/nopasaran-worker:arm64-latest \
             --push \
             -f worker.Dockerfile .
@@ -67,7 +67,7 @@ jobs:
       - name: Build and push master (amd64)
         run: |
           docker buildx build --platform linux/amd64 \
-            -t benilies/nopasaran-master:amd64-${{ github.sha }} \
+            -t benilies/nopasaran-master:${{ github.sha }}-amd64 \
             -t benilies/nopasaran-master:amd64-latest \
             --push \
             -f master.Dockerfile .
@@ -89,7 +89,7 @@ jobs:
       - name: Build and push master (arm64)
         run: |
           docker buildx build --platform linux/arm64 \
-            -t benilies/nopasaran-master:arm64-${{ github.sha }} \
+            -t benilies/nopasaran-master:${{ github.sha }}-arm64 \
             -t benilies/nopasaran-master:arm64-latest \
             --push \
             -f master.Dockerfile .
@@ -115,8 +115,8 @@ jobs:
       - name: Create and push multi-platform manifest for worker
         run: |
           docker manifest create benilies/nopasaran-worker:${{ github.sha }} \
-            --amend benilies/nopasaran-worker:amd64-${{ github.sha }} \
-            --amend benilies/nopasaran-worker:arm64-${{ github.sha }}
+            --amend benilies/nopasaran-worker:${{ github.sha }}-amd64 \
+            --amend benilies/nopasaran-worker:${{ github.sha }}-arm64
           docker manifest push benilies/nopasaran-worker:${{ github.sha }}
 
           docker manifest create benilies/nopasaran-worker:latest \
@@ -127,8 +127,8 @@ jobs:
       - name: Create and push multi-platform manifest for master
         run: |
           docker manifest create benilies/nopasaran-master:${{ github.sha }} \
-            --amend benilies/nopasaran-master:amd64-${{ github.sha }} \
-            --amend benilies/nopasaran-master:arm64-${{ github.sha }}
+            --amend benilies/nopasaran-master:${{ github.sha }}-amd64 \
+            --amend benilies/nopasaran-master:${{ github.sha }}-arm64
           docker manifest push benilies/nopasaran-master:${{ github.sha }}
 
           docker manifest create benilies/nopasaran-master:latest \
