@@ -47,7 +47,7 @@ jobs:
             --push
 
   build-worker-arm-v7:
-    runs-on: [self-hosted, Linux_ARMv7]
+    runs-on: Linux_ARM64
     steps:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
@@ -63,7 +63,7 @@ jobs:
           docker buildx build . \
             --file worker.Dockerfile \
             --tag benilies/nopasaran-worker:latest \
-            --platform linux/arm/v7 \
+            --platform linux/arm/v8 \
             --push
 
   build-master-amd:
@@ -107,7 +107,7 @@ jobs:
             --push
 
   build-master-arm-v7:
-    runs-on: [self-hosted, Linux_ARMv7]
+    runs-on: Linux_ARM64
     steps:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
@@ -123,5 +123,5 @@ jobs:
           docker buildx build . \
             --file master.Dockerfile \
             --tag benilies/nopasaran-master:latest \
-            --platform linux/arm/v7 \
+            --platform linux/arm/v8 \
             --push
