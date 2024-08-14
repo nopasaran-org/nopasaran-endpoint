@@ -18,11 +18,11 @@ jobs:
       - name: Log in to Docker Hub
         run: echo ${{ secrets.DOCKER_TOKEN }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
 
-      - name: Build and push Docker image for benilies/nopasaran-worker
+      - name: Build and push Docker image for benilies/nopasaran-worker (amd64)
         run: |
           docker buildx build . \
             --file worker.Dockerfile \
-            --tag benilies/nopasaran-worker:latest \
+            --tag benilies/nopasaran-worker:amd64 \
             --platform linux/amd64 \
             --push
 
@@ -38,11 +38,11 @@ jobs:
       - name: Log in to Docker Hub
         run: echo ${{ secrets.DOCKER_TOKEN }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
 
-      - name: Build and push Docker image for benilies/nopasaran-worker
+      - name: Build and push Docker image for benilies/nopasaran-worker (arm64)
         run: |
           docker buildx build . \
             --file worker.Dockerfile \
-            --tag benilies/nopasaran-worker:latest \
+            --tag benilies/nopasaran-worker:arm64 \
             --platform linux/arm64 \
             --push
 
@@ -58,13 +58,28 @@ jobs:
       - name: Log in to Docker Hub
         run: echo ${{ secrets.DOCKER_TOKEN }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
 
-      - name: Build and push Docker image for benilies/nopasaran-worker
+      - name: Build and push Docker image for benilies/nopasaran-worker (arm64/v8)
         run: |
           docker buildx build . \
             --file worker.Dockerfile \
-            --tag benilies/nopasaran-worker:latest \
+            --tag benilies/nopasaran-worker:arm64v8 \
             --platform linux/arm64/v8 \
             --push
+
+  create-and-push-worker-manifest:
+    runs-on: ubuntu-latest
+    needs: [build-worker-amd, build-worker-arm64, build-worker-arm64-v8]
+    steps:
+      - name: Log in to Docker Hub
+        run: echo ${{ secrets.DOCKER_TOKEN }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+
+      - name: Create and push multi-platform manifest for benilies/nopasaran-worker
+        run: |
+          docker manifest create benilies/nopasaran-worker:latest \
+            benilies/nopasaran-worker:amd64 \
+            benilies/nopasaran-worker:arm64 \
+            benilies/nopasaran-worker:arm64v8
+          docker manifest push benilies/nopasaran-worker:latest
 
   build-master-amd:
     runs-on: Linux_x64
@@ -78,11 +93,11 @@ jobs:
       - name: Log in to Docker Hub
         run: echo ${{ secrets.DOCKER_TOKEN }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
 
-      - name: Build and push Docker image for benilies/nopasaran-master
+      - name: Build and push Docker image for benilies/nopasaran-master (amd64)
         run: |
           docker buildx build . \
             --file master.Dockerfile \
-            --tag benilies/nopasaran-master:latest \
+            --tag benilies/nopasaran-master:amd64 \
             --platform linux/amd64 \
             --push
 
@@ -98,11 +113,11 @@ jobs:
       - name: Log in to Docker Hub
         run: echo ${{ secrets.DOCKER_TOKEN }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
 
-      - name: Build and push Docker image for benilies/nopasaran-master
+      - name: Build and push Docker image for benilies/nopasaran-master (arm64)
         run: |
           docker buildx build . \
             --file master.Dockerfile \
-            --tag benilies/nopasaran-master:latest \
+            --tag benilies/nopasaran-master:arm64 \
             --platform linux/arm64 \
             --push
 
@@ -118,10 +133,25 @@ jobs:
       - name: Log in to Docker Hub
         run: echo ${{ secrets.DOCKER_TOKEN }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
 
-      - name: Build and push Docker image for benilies/nopasaran-master
+      - name: Build and push Docker image for benilies/nopasaran-master (arm64/v8)
         run: |
           docker buildx build . \
             --file master.Dockerfile \
-            --tag benilies/nopasaran-master:latest \
+            --tag benilies/nopasaran-master:arm64v8 \
             --platform linux/arm64/v8 \
             --push
+
+  create-and-push-master-manifest:
+    runs-on: ubuntu-latest
+    needs: [build-master-amd, build-master-arm64, build-master-arm64-v8]
+    steps:
+      - name: Log in to Docker Hub
+        run: echo ${{ secrets.DOCKER_TOKEN }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+
+      - name: Create and push multi-platform manifest for benilies/nopasaran-master
+        run: |
+          docker manifest create benilies/nopasaran-master:latest \
+            benilies/nopasaran-master:amd64 \
+            benilies/nopasaran-master:arm64 \
+            benilies/nopasaran-master:arm64v8
+          docker manifest push benilies/nopasaran-master:latest
