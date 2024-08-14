@@ -20,12 +20,15 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     zlib1g-dev \
     libssl-dev \
     libffi-dev \
-    libpq-dev \
-    cargo
+    libpq-dev
 
 # Install Netbird
 RUN curl -fsSL https://pkgs.netbird.io/install.sh | sh
 RUN rm /etc/netbird/config.json
+
+# Install Rust and Cargo
+RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
 
 # Create a directory to copy your "resources" folder into
 WORKDIR /app
