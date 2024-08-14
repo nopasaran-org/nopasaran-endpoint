@@ -47,7 +47,7 @@ jobs:
             --push
 
   build-worker-arm-v7:
-    runs-on: Linux_ARMv7
+    runs-on: [self-hosted, Linux_ARMv7]
     steps:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
@@ -107,7 +107,7 @@ jobs:
             --push
 
   build-master-arm-v7:
-    runs-on: Linux_ARMv7
+    runs-on: [self-hosted, Linux_ARMv7]
     steps:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
