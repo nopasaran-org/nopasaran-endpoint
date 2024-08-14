@@ -21,14 +21,12 @@ jobs:
           password: ${{ secrets.DOCKER_TOKEN }}
 
       - name: Build and push worker (amd64)
-        uses: docker/build-push-action@v3
-        with:
-          context: .
-          file: ./worker.Dockerfile
-          platforms: linux/amd64
-          tags: |
-            benilies/nopasaran-worker:latest-amd64
-            benilies/nopasaran-worker:${{ github.sha }}-amd64
+        run: |
+          docker buildx build --platform linux/amd64 \
+            -t benilies/nopasaran-worker:amd64-${{ github.sha }} \
+            -t benilies/nopasaran-worker:amd64-latest \
+            --push \
+            -f worker.Dockerfile .
 
   build-push-worker-arm64:
     runs-on: Linux_ARM64
@@ -45,14 +43,12 @@ jobs:
           password: ${{ secrets.DOCKER_TOKEN }}
 
       - name: Build and push worker (arm64)
-        uses: docker/build-push-action@v3
-        with:
-          context: .
-          file: ./worker.Dockerfile
-          platforms: linux/arm64
-          tags: |
-            benilies/nopasaran-worker:latest-arm64
-            benilies/nopasaran-worker:${{ github.sha }}-arm64
+        run: |
+          docker buildx build --platform linux/arm64 \
+            -t benilies/nopasaran-worker:arm64-${{ github.sha }} \
+            -t benilies/nopasaran-worker:arm64-latest \
+            --push \
+            -f worker.Dockerfile .
 
   build-push-master-amd64:
     runs-on: Linux_x64
@@ -69,14 +65,12 @@ jobs:
           password: ${{ secrets.DOCKER_TOKEN }}
 
       - name: Build and push master (amd64)
-        uses: docker/build-push-action@v3
-        with:
-          context: .
-          file: ./master.Dockerfile
-          platforms: linux/amd64
-          tags: |
-            benilies/nopasaran-master:latest-amd64
-            benilies/nopasaran-master:${{ github.sha }}-amd64
+        run: |
+          docker buildx build --platform linux/amd64 \
+            -t benilies/nopasaran-master:amd64-${{ github.sha }} \
+            -t benilies/nopasaran-master:amd64-latest \
+            --push \
+            -f master.Dockerfile .
 
   build-push-master-arm64:
     runs-on: Linux_ARM64
@@ -93,14 +87,12 @@ jobs:
           password: ${{ secrets.DOCKER_TOKEN }}
 
       - name: Build and push master (arm64)
-        uses: docker/build-push-action@v3
-        with:
-          context: .
-          file: ./master.Dockerfile
-          platforms: linux/arm64
-          tags: |
-            benilies/nopasaran-master:latest-arm64
-            benilies/nopasaran-master:${{ github.sha }}-arm64
+        run: |
+          docker buildx build --platform linux/arm64 \
+            -t benilies/nopasaran-master:arm64-${{ github.sha }} \
+            -t benilies/nopasaran-master:arm64-latest \
+            --push \
+            -f master.Dockerfile .
 
   create-manifests:
     runs-on: ubuntu-latest
@@ -120,34 +112,26 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_TOKEN }}
 
-      - name: Create SHA manifest and push for worker
+      - name: Create and push multi-platform manifest for worker
         run: |
-          docker manifest create \
-            benilies/nopasaran-worker:${{ github.sha }} \
-            --amend benilies/nopasaran-worker:${{ github.sha }}-amd64 \
-            --amend benilies/nopasaran-worker:${{ github.sha }}-arm64
+          docker manifest create benilies/nopasaran-worker:${{ github.sha }} \
+            --amend benilies/nopasaran-worker:amd64-${{ github.sha }} \
+            --amend benilies/nopasaran-worker:arm64-${{ github.sha }}
           docker manifest push benilies/nopasaran-worker:${{ github.sha }}
 
-      - name: Create latest manifest and push for worker
-        run: |
-          docker manifest create \
-            benilies/nopasaran-worker:latest \
-            --amend benilies/nopasaran-worker:latest-amd64 \
-            --amend benilies/nopasaran-worker:latest-arm64
+          docker manifest create benilies/nopasaran-worker:latest \
+            --amend benilies/nopasaran-worker:amd64-latest \
+            --amend benilies/nopasaran-worker:arm64-latest
           docker manifest push benilies/nopasaran-worker:latest
 
-      - name: Create SHA manifest and push for master
+      - name: Create and push multi-platform manifest for master
         run: |
-          docker manifest create \
-            benilies/nopasaran-master:${{ github.sha }} \
-            --amend benilies/nopasaran-master:${{ github.sha }}-amd64 \
-            --amend benilies/nopasaran-master:${{ github.sha }}-arm64
+          docker manifest create benilies/nopasaran-master:${{ github.sha }} \
+            --amend benilies/nopasaran-master:amd64-${{ github.sha }} \
+            --amend benilies/nopasaran-master:arm64-${{ github.sha }}
           docker manifest push benilies/nopasaran-master:${{ github.sha }}
 
-      - name: Create latest manifest and push for master
-        run: |
-          docker manifest create \
-            benilies/nopasaran-master:latest \
-            --amend benilies/nopasaran-master:latest-amd64 \
-            --amend benilies/nopasaran-master:latest-arm64
+          docker manifest create benilies/nopasaran-master:latest \
+            --amend benilies/nopasaran-master:amd64-latest \
+            --amend benilies/nopasaran-master:arm64-latest
           docker manifest push benilies/nopasaran-master:latest
