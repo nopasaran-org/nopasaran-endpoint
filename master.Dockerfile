@@ -44,8 +44,8 @@ RUN python3 -m venv venv
 ENV PATH="/app/venv/bin:$PATH"
 
 # Update pip and install Python packages from requirements.txt
-RUN python -m pip install --upgrade pip && \
-    python -m pip install -r resources/requirements.txt
+#RUN python -m pip install --upgrade pip && \
+#    python -m pip install -r resources/requirements.txt
 
 # Create worker and master users with random passwords of length 20
 RUN useradd -m -s /bin/bash worker && \
