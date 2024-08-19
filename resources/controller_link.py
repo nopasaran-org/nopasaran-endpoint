@@ -135,12 +135,12 @@ class ClientRPC(RpcUtilityMethods):
         except Exception as e:
             return f"- {e}"
 
-    async def execute_test_tree(self, repository="", campaign="", nodes="", variables=""):
+    async def execute_test_tree(self, repository="", tests_tree="", nodes="", variables=""):
         try:
-            campaign_files = fetch_png_files_from_github(repository)
-            campaign_content = download_png_by_name(campaign_files, campaign)
+            tests_tree_files = fetch_png_files_from_github(repository)
+            tests_tree_content = download_png_by_name(tests_tree_files, tests_tree)
             tree = TestsTree(workers=nodes)
-            tree.load_from_png_content(campaign_content)
+            tree.load_from_png_content(tests_tree_content)
             final_output = tree.evaluate_tree(variables)
             return f"+ {final_output}"
         except Exception as e:
