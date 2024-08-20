@@ -8,6 +8,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     openssh-client \
     openssh-server \
+    iptables \
     python3-pip \
     python3-venv \
     python3-dev \
