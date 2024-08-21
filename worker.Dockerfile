@@ -23,7 +23,9 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     libffi-dev \
     libpq-dev \
     cargo \
-    rustc
+    rustc \
+    libpcap-dev \
+    tcpdump
 
 # Install Netbird
 RUN curl -fsSL https://pkgs.netbird.io/install.sh | sh

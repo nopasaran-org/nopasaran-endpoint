@@ -24,6 +24,8 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     libpq-dev \
     cargo \
     rustc \
+    libpcap-dev \
+    tcpdump \
     ansible
 
 # Install Netbird
