@@ -6,6 +6,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # Update and upgrade packages, and install any necessary dependencies
 RUN apt-get update && apt-get upgrade -y && apt-get install -y \
+    sudo \
     openssh-client \
     openssh-server \
     iptables \
@@ -52,6 +53,12 @@ RUN useradd -m -s /bin/bash worker && \
     useradd -m -s /bin/bash master && \
     echo "worker:$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 20 ; echo '')" | chpasswd && \
     echo "master:$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 20 ; echo '')" | chpasswd
+
+# Add the master to the sudo group
+RUN usermod -aG sudo master
+
+# Configure sudoers to not require a password for the master
+RUN echo "master ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
 # Create a directory for SSH host keys
 RUN mkdir /var/run/sshd
