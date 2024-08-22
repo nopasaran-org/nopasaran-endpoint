@@ -37,6 +37,7 @@
         dest: "{{ test_full_path }}/controller_configuration.json"
 
     - name: Ensure /app/venv/bin is in the PATH
+      become: true
       shell: |
         export PATH=/app/venv/bin:$PATH
         nopasaran -t {{ test_full_path }}/MAIN.json -ll info
