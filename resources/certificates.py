@@ -1,9 +1,11 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import datetime
+import time
 import os
 import sys
 from urllib.parse import urljoin
 import logging
+import fcntl
 import json as json_loader
 
 import requests
@@ -453,8 +455,16 @@ def update_sshd_config_user_certificate():
             lines.append(setting)
 
     # Write the modified content back to the sshd_config file
-    with open(sshd_config_path, 'w') as file:
+    with open(sshd_config_path, 'r+') as file:
+        # Lock the file before writing
+        fcntl.flock(file.fileno(), fcntl.LOCK_EX)
+        file.seek(0)
         file.writelines(lines)
+        file.truncate()  # Ensure that any extra old content is removed
+        # Unlock the file after writing
+        fcntl.flock(file.fileno(), fcntl.LOCK_UN)
+
+
 
     logging.info(f'User certificate configuration and security settings updated in {sshd_config_path}.')
 
@@ -482,8 +492,14 @@ def update_sshd_config_host_certificate():
         lines.append(new_line)
 
     # Write the modified content back to the sshd_config file
-    with open(sshd_config_path, 'w') as file:
+    with open(sshd_config_path, 'r+') as file:
+        # Lock the file before writing
+        fcntl.flock(file.fileno(), fcntl.LOCK_EX)
+        file.seek(0)
         file.writelines(lines)
+        file.truncate()  # Ensure that any extra old content is removed
+        # Unlock the file after writing
+        fcntl.flock(file.fileno(), fcntl.LOCK_UN)
 
     logging.info(f'HostCertificate line updated or added to {sshd_config_path}')
 
@@ -531,4 +547,5 @@ def get_certificates():
             logger.error(f"An error occurred: {str(e)}")
             success = False
 
+    time.sleep(1)
     return success
