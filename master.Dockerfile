@@ -4,6 +4,9 @@ FROM ubuntu:latest
 # Set environment variables if needed (e.g., for non-interactive installation)
 ENV DEBIAN_FRONTEND=noninteractive
 
+# Set environment variable for Ansible pipelining
+ENV ANSIBLE_PIPELINING=true
+
 # Update and upgrade packages, and install any necessary dependencies
 RUN apt-get update && apt-get upgrade -y && apt-get install -y \ 
     sudo \
