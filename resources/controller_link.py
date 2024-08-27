@@ -10,7 +10,7 @@ from fastapi_websocket_rpc.rpc_methods import RpcUtilityMethods
 import dotenv
 
 from certificates import get_certificates
-from list_certificates import get_certificate_contents
+from list_certificates import get_certificates_list
 from tests_tree import TestsTree, download_png_by_name, fetch_png_files_from_github
 
 # Load the .env file, but don't override existing environment variables
@@ -115,26 +115,6 @@ class ClientRPC(RpcUtilityMethods):
             error_message = f"Error restarting the services: {e}"
             return f"- {error_message}"
 
-    async def generate_certificates_and_restart(self):
-        try:
-            # Call the functions to generate certificates
-            result = get_certificates()
-
-            # Restart the machine
-            restart_command = ["service", "ssh", "restart"]
-            subprocess.run(restart_command, check=True)
-
-            return f"+ {result}"
-        except Exception as e:
-            return f"- {str(e)}"
-        
-    async def list_certificates(self):
-        try:
-            certificates = get_certificate_contents()
-            return f"+ {certificates}"
-        except Exception as e:
-            return f"- {e}"
-
     async def execute_test_tree(self, repository="", tests_tree="", nodes="", variables=""):
         try:
             tests_tree_files = fetch_png_files_from_github(repository)
@@ -169,6 +149,16 @@ class ClientRPC(RpcUtilityMethods):
         except Exception as e:
             return f"- {str(e)}"
 
+def generate_certificates_and_restart():
+        certificates_list = get_certificates_list()
+        if False in certificates_list:
+            # Call the functions to generate certificates
+            get_certificates()
+
+            # Restart the machine
+            restart_command = ["service", "ssh", "restart"]
+            subprocess.run(restart_command, check=True)
+
 
 def get_local_ip_for_target(target_ip):
     try:
@@ -193,6 +183,7 @@ def get_local_ip_for_target(target_ip):
 async def on_connect(channel):
     client_private_ip = get_local_ip_for_target(host)
     netbird_ip = get_netbird_ip()
+    generate_certificates_and_restart()
     await asyncio.create_task(channel.other.register_ip_addresses(client_private_ip=client_private_ip, netbird_ip=netbird_ip))
 
 async def run_client(uri):
