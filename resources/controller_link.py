@@ -4,6 +4,8 @@ import logging
 import sys
 import asyncio
 import socket
+import pickle
+import base64
 
 from fastapi_websocket_rpc import WebSocketRpcClient, logger
 from fastapi_websocket_rpc.rpc_methods import RpcUtilityMethods
@@ -129,7 +131,7 @@ class ClientRPC(RpcUtilityMethods):
     async def configure_netbird_key(self, key_setup="", hostname=""):
         try:            
             # Execute the netbird up command
-            result = subprocess.run(
+            subprocess.run(
                 [
                     "netbird",
                     "up",
@@ -140,14 +142,16 @@ class ClientRPC(RpcUtilityMethods):
                 stderr=subprocess.PIPE,
                 text=True
             )
-
-            # Check if there are any errors
-            if result.returncode != 0:
-                return f"- Error: {result.stderr}"
-
-            return f"+ Done"  # Join log contents with a comma or any other separator
         except Exception as e:
-            return f"- {str(e)}"
+            print(f"Error: {e}")
+        finally:
+            client_private_ip = get_local_ip_for_target(host)
+            netbird_ip = get_netbird_ip()
+            
+            serialized_obj = pickle.dumps([netbird_ip, client_private_ip])
+            encoded_str = base64.b64encode(serialized_obj).decode('utf-8')
+
+            return encoded_str
 
 def generate_certificates_and_restart():
         certificates_list = get_certificates_list()
@@ -181,10 +185,7 @@ def get_local_ip_for_target(target_ip):
 
 
 async def on_connect(channel):
-    client_private_ip = get_local_ip_for_target(host)
-    netbird_ip = get_netbird_ip()
     generate_certificates_and_restart()
-    await asyncio.create_task(channel.other.register_ip_addresses(client_private_ip=client_private_ip, netbird_ip=netbird_ip))
 
 async def run_client(uri):
     while True:
