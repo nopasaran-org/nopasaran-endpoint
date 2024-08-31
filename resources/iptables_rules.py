@@ -1,5 +1,11 @@
+import os
+import uuid
 import iptc
 import logging
+import dotenv
+
+# Load the .env file, but don't override existing environment variables
+dotenv.load_dotenv('/app/resources/config.env', override=False)
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -39,8 +45,14 @@ def add_reference_rule_to_output_chain(custom_chain_name):
     output_chain.insert_rule(rule)
     logging.info(f"Reference rule to {custom_chain_name} added to OUTPUT chain.")
 
-def add_tcp_custom_rules_to_chain(chain, sport=None, dport=None, tcp_flags=None):
-    """Add custom TCP rules to the specified chain."""
+def add_tcp_drop_rule_to_chain_and_get_name(chain_name, sport=None, dport=None, tcp_flags=None):
+    """Add a custom TCP DROP rule with a random name to the specified chain and return the name of the newly added rule."""
+    # Generate a random name for the rule
+    rule_name = str(uuid.uuid4())
+    
+    # Get the chain by name
+    chain = iptc.Chain(iptc.Table(iptc.Table.FILTER), chain_name)
+    
     # Create a new rule
     rule = iptc.Rule()
     rule.protocol = 'tcp'
@@ -54,12 +66,19 @@ def add_tcp_custom_rules_to_chain(chain, sport=None, dport=None, tcp_flags=None)
     if tcp_flags:
         match.tcp_flags = tcp_flags
     
+    # Add a comment match with the rule name
+    comment = rule.create_match("comment")
+    comment.comment = rule_name
+    
     # Set the target to DROP
     rule.target = iptc.Target(rule, 'DROP')
     
-    # Insert the rule at the beginning of the chain
-    chain.insert_rule(rule)
-    logging.info(f"Rule added to {chain.name}: SPORT={sport}, DPORT={dport}, TCP_FLAGS={tcp_flags}")
+    # Append the rule at the end of the chain
+    chain.append_rule(rule)
+    logging.info(f"Rule appended to {chain_name}: SPORT={sport}, DPORT={dport}, TCP_FLAGS={tcp_flags}, NAME={rule_name}")
+    
+    # Return the name of the newly added rule
+    return rule_name
 
 def list_rules_in_chain(chain_name):
     """List all rules in the specified chain."""
@@ -70,6 +89,22 @@ def list_rules_in_chain(chain_name):
         rules.append((index, rule_str))
         logging.info(f"Rule {index}: {rule_str}")
     return rules
+
+def remove_rule_by_name(chain_name, rule_name):
+    """Remove a rule from the specified chain by its comment (name)."""
+    # Get the chain by name
+    chain = iptc.Chain(iptc.Table(iptc.Table.FILTER), chain_name)
+    
+    # Iterate through the rules in the chain
+    for rule in chain.rules:
+        for match in rule.matches:
+            if match.name == "comment" and match.comment == rule_name:
+                chain.delete_rule(rule)
+                logging.info(f"Rule with name '{rule_name}' removed from {chain_name}.")
+                return True
+    
+    logging.warning(f"No rule with name '{rule_name}' found in {chain_name}.")
+    return False
 
 def remove_rule_by_index(chain_name, index):
     """Remove a rule from the specified chain based on its index."""
@@ -114,3 +149,11 @@ def delete_chain(chain_name):
         logging.info(f"Chain {chain_name} deleted.")
     else:
         logging.info(f"Chain {chain_name} does not exist.")
+        
+        
+def init():
+    chain_name = os.environ.get('OUTPUT_CHAIN')
+    create_chain(chain_name)
+    add_reference_rule_to_output_chain(chain_name)
+    
+init()

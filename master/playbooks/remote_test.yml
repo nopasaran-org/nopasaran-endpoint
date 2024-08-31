@@ -33,8 +33,26 @@
 
         # Ensure /app/venv/bin is in the PATH and run the command
         export PATH=/app/venv/bin:$PATH
+
+        # Change directory to the path specified by the variable test_full_path
         cd "${test_full_path}"
+
+        # Check if the "required" field exists and is a dictionary
+        if jq -e '.required | type == "object"' variables.json > /dev/null; then
+            # Extract the "required" dictionary
+            required_dict=$(jq -c '.required' variables.json)
+            
+            # Pass the dictionary to the Python script
+            python /app/resources/required_preprocessing.py "$required_dict"
+        else
+            echo "The 'required' field does not exist or is not a dictionary."
+        fi
+
+        # Execute the nopasaran test
         nopasaran -t MAIN.json -ll info
+
+        # Perform postprocessing actions after the nopasaran test
+        python /app/resources/required_postprocessing.py
 
         # Output folder name for use in the next task
         echo "${random_folder_name}"

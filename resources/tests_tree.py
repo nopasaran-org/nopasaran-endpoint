@@ -8,7 +8,6 @@ import threading
 import requests
 
 import pydot
-import random
 from PIL import Image, PngImagePlugin
 from io import BytesIO
 
