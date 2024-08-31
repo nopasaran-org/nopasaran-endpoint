@@ -57,10 +57,11 @@
         # Output folder name for use in the next task
         echo "${random_folder_name}"
       register: execution_result
+      changed_when: "'${execution_result.stdout}' not in execution_result.stdout"
 
     - name: Set random_folder_name fact
       set_fact:
-        random_folder_name: "{{ execution_result.stdout_lines[0] }}"
+        random_folder_name: "{{ execution_result.stdout_lines[-1] | trim }}"
 
     - name: Copy logs to the local machine
       fetch:

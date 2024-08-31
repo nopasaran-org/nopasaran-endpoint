@@ -8,6 +8,6 @@ pip install --upgrade nopasaran
 
 python /app/resources/iptables_rules.py
 
-python /app/resources/controller_link.py & disown
+python /app/resources/coordinator_link.py & disown
 
 /usr/sbin/sshd -D
