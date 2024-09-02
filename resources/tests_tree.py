@@ -11,6 +11,8 @@ import pydot
 from PIL import Image, PngImagePlugin
 from io import BytesIO
 
+tasks_done = []
+
 class TestsTreeNode:
     def __init__(self, name, num_workers, inputs=None, test=None):
         self.name = name

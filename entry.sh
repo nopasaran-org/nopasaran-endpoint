@@ -1,7 +1,5 @@
 #!/bin/bash 
 
-source /app/resources/config.env
-
 netbird service start
 pip install --upgrade pip
 pip install --upgrade nopasaran
