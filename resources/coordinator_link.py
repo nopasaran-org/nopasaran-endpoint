@@ -13,7 +13,7 @@ import dotenv
 
 from certificates import get_certificates
 from list_certificates import get_certificates_list
-from tests_tree import TestsTree, download_png_by_name, fetch_png_files_from_github
+from task_publisher import init_publisher, publish_task, read_results
 
 # Load the .env file, but don't override existing environment variables
 dotenv.load_dotenv('/app/resources/config.env', override=False)
@@ -58,7 +58,7 @@ ROLE = os.environ.get("ROLE")
 # Define the output file path
 INVENTORY_PATH = os.path.expanduser(os.getenv("INVENTORY_PATH"))
 
-g_channel = None
+init_publisher()
 
 import subprocess
 import re
@@ -119,16 +119,9 @@ class ClientRPC(RpcUtilityMethods):
             error_message = f"Error restarting the services: {e}"
             return f"- {error_message}"
 
-    async def execute_test_tree(self, repository="", tests_tree="", nodes="", variables="", task_id=""):
+    async def execute_task(self, task_id="", repository="", tests_tree="", nodes="", variables=""):
         try:
-            tests_tree_files = fetch_png_files_from_github(repository)
-            tests_tree_content = download_png_by_name(tests_tree_files, tests_tree)
-            tree = TestsTree(workers=nodes)
-            tree.load_from_png_content(tests_tree_content)
-
-            # Run the evaluation in the background
-            asyncio.create_task(process_tree_evaluation(tree, variables, task_id))
-
+            publish_task(task_id, repository, tests_tree, nodes, variables)
             return f"+ Submitted"
         except Exception as e:
             return f"- {str(e)}"
@@ -157,21 +150,9 @@ class ClientRPC(RpcUtilityMethods):
             encoded_str = base64.b64encode(serialized_obj).decode('utf-8')
 
             return encoded_str
-
-async def process_tree_evaluation(tree, variables, task_id):
-    global g_channel
-    
-    def notify_task_completion(result):
-        if g_channel:
-            return g_channel.other.signal_task_done(task_id=task_id, result=result)
-        return None
-
-    try:
-        result = tree.evaluate_tree(variables)
-        await notify_task_completion(result)
-    except Exception as e:
-        error_message = f"Error during tree evaluation: {str(e)}"
-        await notify_task_completion(error_message)
+        
+    async def retrieve_completed_task(self):
+        return read_results()
 
 def generate_certificates_and_restart():
         certificates_list = get_certificates_list()
@@ -205,18 +186,13 @@ def get_local_ip_for_target(target_ip):
 
 
 async def on_connect(channel):
-    global g_channel
-    g_channel = channel
     generate_certificates_and_restart()
-    
-async def on_disconnect(channel):
-    global g_channel
-    g_channel = None
+
 
 async def run_client(uri):
     while True:
         try:
-            async with WebSocketRpcClient(uri, ClientRPC(), on_connect=[on_connect], on_disconnect=[on_disconnect]) as client:
+            async with WebSocketRpcClient(uri, ClientRPC(), on_connect=[on_connect]) as client:
                 task1 = asyncio.create_task(client.channel.methods.can_exit.wait())
                 task2 = asyncio.create_task(client.channel._closed.wait())
 

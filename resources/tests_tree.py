@@ -11,8 +11,6 @@ import pydot
 from PIL import Image, PngImagePlugin
 from io import BytesIO
 
-tasks_done = []
-
 class TestsTreeNode:
     def __init__(self, name, num_workers, inputs=None, test=None):
         self.name = name
@@ -27,10 +25,15 @@ class TestsTreeNode:
     def evaluate_test(self, workers, repository, input_values):
         def evaluate_worker(inputs, node, control_node, repository, results, endpoint_key):
             try:
+                import time
+                time.sleep(40)
+                results[endpoint_key] = {endpoint_key: "dummy-value"}
+                return 
                 execution_logs = execute_test(repository=repository, test=self.test, node=node, control_node=control_node, variables=inputs)
                 serialized_result_log = extract_base64(execution_logs)
                 result = deserialize_log_data(serialized_result_log)
                 results[endpoint_key] = result  # Store the result in the shared dictionary
+
             except Exception as e:
                 results[endpoint_key] = e
 
@@ -327,37 +330,39 @@ def download_png_by_name(png_files, file_name):
 
 
 def execute_test(repository="", test="", node="", control_node="", variables=""):
-    try:
-        final_output_directory = secrets.token_hex(6)
+    final_output_directory = secrets.token_hex(6)
+    command = [
+        "ansible-playbook",
+        "/ansible/remote_test.yml",
+        "-i",
+        f"{node}:1963,",
+        "--extra-vars",
+        f'{{"github_repo_url":"{repository}", "test_folder":"{test}", "final_output_directory":"{final_output_directory}", "remote_control_channel_end":"{control_node}", "variables":{variables}}}',
+    ]
+    subprocess.run(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True
+    )
 
-        command = [
-            "ansible-playbook",
-            "/ansible/remote_test.yml",
-            "-i",
-            f"{node}:1963,",
-            "--extra-vars",
-            f'{{"github_repo_url":"{repository}", "test_folder":"{test}", "final_output_directory":"{final_output_directory}", "remote_control_channel_end":"{control_node}", "variables":{variables}}}',
-        ]
-
-        result = subprocess.run(
-            command,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
-        )
-
-        # Find log files in the specified directory tree
-        log_contents = []
-        for root, dirs, files in os.walk(f"/results/{final_output_directory}"):
-            for file in files:
-                if file.startswith("conf") and file.endswith(".log"):
-                    log_file_path = os.path.join(root, file)
-                    with open(log_file_path, 'r') as log_file:
-                        log_contents.append(log_file.read())
-
-        return f"+ {', '.join(log_contents)}"  # Join log contents with a comma or any other separator
-    except Exception as e:
-        return f"- {str(e)}"
+    # Search for the first matching log file in the specified directory tree
+    log_file_path = next(
+        (
+            os.path.join(root, file)
+            for root, _, files in os.walk(f"/results/{final_output_directory}")
+            for file in files
+            if file.startswith("conf") and file.endswith(".log")
+        ),
+        None
+    )
+    
+    if log_file_path:
+        with open(log_file_path, 'r') as log_file:
+            log_content = log_file.read()
+        return log_content
+    else:
+        return ""
     
 def extract_base64(log_string):
     # Regex pattern to match the base64 encoded string
@@ -371,6 +376,28 @@ def extract_base64(log_string):
         return match.group(1)
     else:
         return None
+    
+def serialize_log_data(log_data):
+    def serialize_object(obj):
+        try:
+            # Serialize the object to a byte stream
+            byte_stream = pickle.dumps(obj)
+            # Encode the byte stream to a base64 string
+            base64_string = base64.b64encode(byte_stream).decode('utf-8')
+            return base64_string
+        except Exception as e:
+            return None
+
+    def serialize_value(value):
+        if value is None:
+            return None
+        if isinstance(value, dict):
+            return {k: serialize_value(v) for k, v in value.items()}
+        return serialize_object(value)
+    
+    serialized_data = {k: serialize_value(v) for k, v in log_data.items()}
+    # Encode the final serialized data into a base64 string
+    return base64.b64encode(pickle.dumps(serialized_data)).decode('utf-8')
     
 def deserialize_log_data(base64_data):
     def deserialize_object(base64_string):
@@ -398,3 +425,30 @@ def deserialize_log_data(base64_data):
         return {k: deserialize_value(v) for k, v in serialized_data.items()}
     except Exception as e:
         return None
+    
+def deserialize_log_data(base64_data):
+    def deserialize_object(base64_string):
+        try:
+            # Decode the base64 string to a byte stream
+            byte_stream = base64.b64decode(base64_string)
+            # Deserialize the byte stream to the original object
+            obj = pickle.loads(byte_stream)
+            return obj
+        except Exception as e:
+            return None
+
+    def deserialize_value(value):
+        if value is None:
+            return None
+        if isinstance(value, dict):
+            return {k: deserialize_value(v) for k, v in value.items()}
+        return deserialize_object(value)
+    
+    try:
+        # Decode the base64 data to a byte stream
+        byte_stream = base64.b64decode(base64_data)
+        # Deserialize the byte stream to the serialized data
+        serialized_data = pickle.loads(byte_stream)
+        return {k: deserialize_value(v) for k, v in serialized_data.items()}
+    except Exception as e:
+        return None    
