@@ -13,7 +13,7 @@ import dotenv
 
 from certificates import get_certificates
 from list_certificates import get_certificates_list
-from tests_tree import TestsTree, download_png_by_name, fetch_png_files_from_github
+from tests_tree import TestsTree, download_png_by_name, fetch_png_files_from_github, serialize_log_data
 
 # Load the .env file, but don't override existing environment variables
 dotenv.load_dotenv('/app/resources/config.env', override=False)
@@ -167,7 +167,8 @@ async def process_tree_evaluation(tree, variables, task_id):
         return None
 
     try:
-        result = tree.evaluate_tree(variables)
+        leaf_logs = tree.evaluate_tree(variables)
+        result = serialize_log_data(leaf_logs)
         await notify_task_completion(result)
     except Exception as e:
         error_message = f"Error during tree evaluation: {str(e)}"
