@@ -1,0 +1,24 @@
+version: "3"
+services:
+  iliesmanager2:
+    container_name: iliesmanager2
+    image: benilies/nopasaran-manager
+    environment:
+      - ENDPOINT_NAME=iliesmanager2
+      - AUTHORIZATION_TOKEN=7R0RvVgo2QUUMvbPYykDwDnUbjqcdq1vfoMr2Bx8UmxuEgjF46veQ3wRcwvb4HFZN2acKu0qxsLLfQYeNOdFy3EPUBcAXE2xXN67rULkrx4i-Sv6Ql9LZEcwV0buwaNpzNE0tpsElFbsyr01jxQ1wIpo811OwgB-mBkQsA5J3R4
+      - ROLE=manager
+      - SERVER_HOST=127.0.0.1
+      - SERVER_PORT=8000
+    restart: always
+    network_mode: "host"
+    cap_add:
+      - NET_ADMIN
+      - SYS_PTRACE
+    volumes:
+      - ./resources:/app/resources:ro
+  watchtower:
+    image: containrrr/watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: always
+    command: iliesmanager2 --interval 60 --cleanup
