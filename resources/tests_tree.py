@@ -25,10 +25,6 @@ class TestsTreeNode:
     def evaluate_test(self, workers, repository, input_values):
         def evaluate_worker(inputs, node, control_node, repository, results, endpoint_key):
             try:
-                import time
-                time.sleep(40)
-                results[endpoint_key] = {endpoint_key: "dummy-value"}
-                return 
                 execution_logs = execute_test(repository=repository, test=self.test, node=node, control_node=control_node, variables=inputs)
                 serialized_result_log = extract_base64(execution_logs)
                 result = deserialize_log_data(serialized_result_log)
