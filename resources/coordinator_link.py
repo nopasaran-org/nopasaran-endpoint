@@ -7,6 +7,7 @@ import socket
 import pickle
 import base64
 
+from websockets.exceptions import ConnectionClosedOK
 from fastapi_websocket_rpc import WebSocketRpcClient, logger
 from fastapi_websocket_rpc.rpc_methods import RpcUtilityMethods
 import dotenv
@@ -62,6 +63,26 @@ init_publisher()
 
 import subprocess
 import re
+
+# Add an async function to read results periodically and send them to the WebSocket channel
+async def periodic_result_reader(channel, interval=5):
+    while True:
+        try:
+            # Read the results of the tests-trees
+            results = read_results()
+            # If results are found, send them to the WebSocket channel
+            if results:
+                await channel.other.signal_task_done(results=results)
+                logging.info(f"Results sent to the coordinator")
+        except FileNotFoundError:
+            # No result file found, you can log it or ignore silently
+            logging.info(f"No result file found, retrying in {interval} seconds.")
+        except Exception as e:
+            # Log any other errors
+            logging.error(f"Error reading results: {e}")
+        
+        # Wait for the specified interval before checking again
+        await asyncio.sleep(interval)
 
 def get_netbird_ip():
     try:
@@ -150,9 +171,6 @@ class ClientRPC(RpcUtilityMethods):
             encoded_str = base64.b64encode(serialized_obj).decode('utf-8')
 
             return encoded_str
-        
-    async def retrieve_completed_task(self):
-        return read_results()
 
 def generate_certificates_and_restart():
         certificates_list = get_certificates_list()
@@ -193,11 +211,18 @@ async def run_client(uri):
     while True:
         try:
             async with WebSocketRpcClient(uri, ClientRPC(), on_connect=[on_connect]) as client:
+                # Create the periodic result reader task
+                result_reader_task = asyncio.create_task(periodic_result_reader(client.channel))
+
+                # Task to wait for can_exit event or connection close
                 task1 = asyncio.create_task(client.channel.methods.can_exit.wait())
                 task2 = asyncio.create_task(client.channel._closed.wait())
 
-                # Wait for either the can_exit event or the WebSocket connection to close
+                # Wait for either the can_exit event, WebSocket connection to close, or result reader task to finish
                 await asyncio.wait([task1, task2], return_when=asyncio.FIRST_COMPLETED)
+
+                # If either of the main tasks is done, cancel the result reader
+                result_reader_task.cancel()
 
         except Exception as e:
             print(f"Error: {e}")
