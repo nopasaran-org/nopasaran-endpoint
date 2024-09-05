@@ -4,7 +4,6 @@ import logging
 import dotenv
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
-from datetime import datetime
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -19,13 +18,6 @@ def load_certificate(cert_path):
     except Exception as e:
         logging.error(f"Error loading certificate {cert_path}: {e}")
         return None
-
-def is_certificate_valid(cert):
-    """Check if the certificate is still valid (i.e., not expired)."""
-    if not cert:
-        return False
-    current_time = datetime.utcnow()
-    return cert.not_valid_before <= current_time <= cert.not_valid_after
 
 def get_certificates_list():
     # Load the .env file, but don't override existing environment variables
@@ -60,7 +52,7 @@ def get_certificates_list():
             if "x509" in key:
                 # Load and validate the certificate (for x509 paths)
                 cert = load_certificate(cert_path)
-                if is_certificate_valid(cert):
+                if cert:
                     certificates.append(True)
                 else:
                     certificates.append(False)
