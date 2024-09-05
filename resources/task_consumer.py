@@ -2,8 +2,8 @@ import json
 import time
 import os
 import logging
-from concurrent.futures import ThreadPoolExecutor
-from threading import Lock, Thread
+from concurrent.futures import ProcessPoolExecutor
+from multiprocessing import Lock
 
 from tests_tree import TestsTree, download_png_by_name, fetch_png_files_from_github, serialize_log_data
 
@@ -19,7 +19,6 @@ os.makedirs(inputs_dir, exist_ok=True)
 os.makedirs(results_dir, exist_ok=True)
 
 lock = Lock()  # Lock to ensure thread-safe file operations
-executor = ThreadPoolExecutor()  # Executor for parallel task processing
 
 def execute_tests_tree(data):
     tests_tree_files = fetch_png_files_from_github(data["repository"])
@@ -72,21 +71,25 @@ def process_task(task_file):
             if os.path.exists(locked_task_file_path):
                 os.rename(locked_task_file_path, original_task_file_path)
 
-def task_monitor():
+def task_monitor(executor):
+    """
+    The task monitor runs in the main process and submits tasks to the ProcessPoolExecutor.
+    """
     while True:
         task_files = [f for f in os.listdir(inputs_dir) if f.startswith("task_") and not f.endswith(".lock")]
 
         for task_file in task_files:
-            # Submit tasks for parallel processing
+            # Submit tasks for parallel processing using ProcessPoolExecutor
             executor.submit(process_task, task_file)
 
         time.sleep(3)  # Adjust the sleep duration as needed
 
 if __name__ == "__main__":
-    # Start the task monitor thread
-    monitor_thread = Thread(target=task_monitor, daemon=True)
-    monitor_thread.start()
-
-    # Main thread can do other work or just sleep
-    while True:
-        time.sleep(1)  # Main thread sleeps and can be used for other tasks
+    # Create the ProcessPoolExecutor in the main process
+    with ProcessPoolExecutor() as executor:
+        try:
+            # Run the task monitor directly in the main process
+            task_monitor(executor)
+        except KeyboardInterrupt:
+            logging.info("Shutting down gracefully.")
+            executor.shutdown(wait=True)
