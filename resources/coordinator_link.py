@@ -162,7 +162,7 @@ class ClientRPC(RpcUtilityMethods):
                 text=True
             )
         except Exception as e:
-            print(f"Error: {e}")
+            logging.error(f"Error: {e}")
         finally:
             client_private_ip = get_local_ip_for_target(host)
             netbird_ip = get_netbird_ip()
@@ -199,7 +199,7 @@ def get_local_ip_for_target(target_ip):
         
         return local_ip
     except Exception as e:
-        print(f"Error: {e}")
+        logging.error(f"Error: {e}")
         return None
 
 
@@ -225,7 +225,7 @@ async def run_client(uri):
                 result_reader_task.cancel()
 
         except Exception as e:
-            print(f"Error: {e}")
+            logging.error(f"Error: {e}")
             await asyncio.sleep(3)  # Retry every 3 seconds
 
 

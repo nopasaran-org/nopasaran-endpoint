@@ -1,8 +1,12 @@
 import json
 import time
 import os
+import logging
 
 from tests_tree import TestsTree, download_png_by_name, fetch_png_files_from_github, serialize_log_data
+
+# Set up logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 tasks_dir = f"/tmp/tasks"
 inputs_dir = os.path.join(tasks_dir, "inputs")
@@ -30,7 +34,7 @@ def publish_result(task_id, result):
     result_file = os.path.join(results_dir, f"result_{task_id}.json")
     with open(result_file, "w") as file:
         json.dump(result_data, file)
-    print(f"Consumer published result: {result_data}")
+    logging.info(f"Consumer published result: {result_data}")
 
 def main():
     while True:

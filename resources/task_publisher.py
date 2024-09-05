@@ -1,6 +1,9 @@
 import json
 import os
-import uuid
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 tasks_dir = f"/tmp/tasks"
 inputs_dir = os.path.join(tasks_dir, "inputs")
@@ -22,7 +25,7 @@ def publish_task(task_id, repository, tests_tree, nodes, variables):
     task_file = os.path.join(inputs_dir, f"task_{task_id}.json")
     with open(task_file, "w") as file:
         json.dump(task, file)
-    print(f"Publisher published task: {task}")
+    logging.info(f"Publisher published task: {task}")
 
 def read_results():
     results_files = [f for f in os.listdir(results_dir) if f.startswith("result_")]

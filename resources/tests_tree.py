@@ -6,10 +6,14 @@ import subprocess
 import secrets
 import threading
 import requests
+import logging
 
 import pydot
 from PIL import Image, PngImagePlugin
 from io import BytesIO
+
+# Set up logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class TestsTreeNode:
     def __init__(self, name, num_workers, inputs=None, test=None):
@@ -135,7 +139,7 @@ class TestsTree:
                         else:
                             inputs = [{}] * num_workers
                     except Exception as e:
-                        print(f"Error decoding input '{part}': {e}")
+                        logging.error(f"[Tests-Tree] - Error decoding input '{part}': {e}")
                         inputs = [{}] * num_workers
                 elif part.startswith('Test: '):
                     test = part.replace('Test: ', '').strip()
@@ -148,7 +152,7 @@ class TestsTree:
             try:
                 conditions = [base64.b64decode(edge.get_attributes()['encoded_label'].strip('"')).decode()]
             except Exception as e:
-                print(f"Error decoding edge condition: {e}")
+                logging.error(f"[Tests-Tree] - Error decoding edge condition: {e}")
                 conditions = []
             self.add_edge(nodes[parent_name], nodes[child_name], conditions)
 
@@ -249,7 +253,7 @@ class TestsTree:
                             output_values = self._evaluate_node(child, node_inputs)
                             return output_values  # Return as soon as the first condition is met
                     except Exception as e:
-                        print(f"Error evaluating condition '{condition}' for node {node.name}: {e}")
+                        logging.error(f"[Tests-Tree] - Error evaluating condition '{condition}' for node {node.name}: {e}")
 
         return output_values
 
@@ -293,7 +297,7 @@ class TestsTree:
                 for i, default in enumerate(node.inputs)
             ]
         else:
-            print(f"Node '{node_name}' not found.")
+            logging.error(f"[Tests-Tree] - Node '{node_name}' not found.")
 
     def _find_node(self, node, node_name):
         if node is None:

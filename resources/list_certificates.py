@@ -1,5 +1,31 @@
 import os
+import logging
+
 import dotenv
+from cryptography import x509
+from cryptography.hazmat.backends import default_backend
+from datetime import datetime
+
+# Set up logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+def load_certificate(cert_path):
+    """Helper function to load a certificate from a file."""
+    try:
+        with open(cert_path, 'rb') as cert_file:
+            cert_data = cert_file.read()
+            certificate = x509.load_pem_x509_certificate(cert_data, default_backend())
+            return certificate
+    except Exception as e:
+        logging.error(f"Error loading certificate {cert_path}: {e}")
+        return None
+
+def is_certificate_valid(cert):
+    """Check if the certificate is still valid (i.e., not expired)."""
+    if not cert:
+        return False
+    current_time = datetime.utcnow()
+    return cert.not_valid_before <= current_time <= cert.not_valid_after
 
 def get_certificates_list():
     # Load the .env file, but don't override existing environment variables
@@ -29,12 +55,19 @@ def get_certificates_list():
     }
 
     certificates = []
-    for _, cert_path in certificate_contents.items():
-        if cert_path:
-            if os.path.isfile(cert_path):
-                certificates.append(True)
+    for key, cert_path in certificate_contents.items():
+        if cert_path and os.path.isfile(cert_path):
+            if "x509" in key:
+                # Load and validate the certificate (for x509 paths)
+                cert = load_certificate(cert_path)
+                if is_certificate_valid(cert):
+                    certificates.append(True)
+                else:
+                    certificates.append(False)
             else:
-                certificates.append(False)
+                # Just check if the file exists for non-x509 paths
+                certificates.append(True)
         else:
             certificates.append(False)
+
     return certificates
