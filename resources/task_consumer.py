@@ -2,7 +2,8 @@ import json
 import time
 import os
 import logging
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
+from threading import Lock, Thread
 
 from tests_tree import TestsTree, download_png_by_name, fetch_png_files_from_github, serialize_log_data
 
@@ -16,6 +17,9 @@ results_dir = os.path.join(tasks_dir, "results")
 # Ensure directories exist
 os.makedirs(inputs_dir, exist_ok=True)
 os.makedirs(results_dir, exist_ok=True)
+
+lock = Lock()  # Lock to ensure thread-safe file operations
+executor = ThreadPoolExecutor()  # Executor for parallel task processing
 
 def execute_tests_tree(data):
     tests_tree_files = fetch_png_files_from_github(data["repository"])
@@ -41,12 +45,15 @@ def process_task(task_file):
     original_task_file_path = os.path.join(inputs_dir, task_file)
     locked_task_file_path = original_task_file_path + ".lock"
 
-    # Rename task file to avoid reprocessing
-    try:
+    with lock:
+        # Rename task file to avoid reprocessing
+        if not os.path.exists(original_task_file_path):
+            logging.warning(f"Task file {original_task_file_path} does not exist.")
+            return
+        if os.path.exists(locked_task_file_path):
+            logging.warning(f"Task file {locked_task_file_path} already exists.")
+            return
         os.rename(original_task_file_path, locked_task_file_path)
-    except FileNotFoundError:
-        logging.error(f"Task file {original_task_file_path} was not found.")
-        return
 
     try:
         with open(locked_task_file_path, "r") as file:
@@ -60,28 +67,26 @@ def process_task(task_file):
         logging.info(f"Task {task['id']} processed and file removed.")
     except Exception as e:
         logging.error(f"Error processing task {task_file}: {str(e)}")
-        if os.path.exists(locked_task_file_path):
-            os.rename(locked_task_file_path, original_task_file_path)  # Restore file for retry
+        # Restore file if there was an error
+        with lock:
+            if os.path.exists(locked_task_file_path):
+                os.rename(locked_task_file_path, original_task_file_path)
 
-def main():
+def task_monitor():
     while True:
         task_files = [f for f in os.listdir(inputs_dir) if f.startswith("task_") and not f.endswith(".lock")]
-        
-        if task_files:
-            # Use ThreadPoolExecutor for parallel processing
-            with ThreadPoolExecutor() as executor:
-                # Submit tasks for parallel processing
-                futures = {executor.submit(process_task, task_file): task_file for task_file in task_files}
 
-                # Handle completion of tasks
-                for future in as_completed(futures):
-                    task_file = futures[future]
-                    try:
-                        future.result()  # Get result of the future to raise exceptions if any
-                    except Exception as e:
-                        logging.error(f"Task {task_file} failed: {str(e)}")
-        
+        for task_file in task_files:
+            # Submit tasks for parallel processing
+            executor.submit(process_task, task_file)
+
         time.sleep(3)  # Adjust the sleep duration as needed
 
 if __name__ == "__main__":
-    main()
+    # Start the task monitor thread
+    monitor_thread = Thread(target=task_monitor, daemon=True)
+    monitor_thread.start()
+
+    # Main thread can do other work or just sleep
+    while True:
+        time.sleep(1)  # Main thread sleeps and can be used for other tasks
