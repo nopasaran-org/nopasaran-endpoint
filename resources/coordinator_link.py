@@ -83,6 +83,37 @@ async def periodic_result_reader(channel, interval=5):
         
         # Wait for the specified interval before checking again
         await asyncio.sleep(interval)
+        
+def restart_daemons():        
+    try:
+        # Attempt to restart the SSH daemon
+        logging.info("Attempting to restart the netbird daemon...")
+        netbird_command = ["netbird", "service", "start"]
+        subprocess.Popen(
+            netbird_command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        ).communicate()  # Ensure this completes before proceeding
+        # Log success
+        logging.info("Netbird daemon restarted successfully.")
+        
+        # Attempt to restart the SSH daemon
+        logging.info("Attempting to restart the netbird daemon...")
+        # Restart ssh service
+        ssh_command = ["service", "ssh", "restart"]
+        subprocess.Popen(
+            ssh_command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        ).communicate()  # Ensure this completes before proceeding
+        # Log success
+        logging.info("SSH daemon restarted successfully.")
+
+    except Exception as e:
+        # Log failure with error details
+        logging.error(f"Failed to restart the daemons: {e}")
 
 def get_netbird_ip():
     try:
@@ -100,6 +131,23 @@ def get_netbird_ip():
     except subprocess.CalledProcessError:
         # If the command fails, return None
         return None
+    
+def configure_netbird_key(setup_key, hostname):
+    try:            
+        # Execute the netbird up command
+        subprocess.run(
+            [
+                "netbird",
+                "up",
+                "--setup-key", setup_key,
+                "--hostname", hostname
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+    except Exception as e:
+        logging.error(f"Error: {e}")
 
 
 # Methods to expose to the clients
@@ -110,35 +158,25 @@ class ClientRPC(RpcUtilityMethods):
         self.is_running = False
         self.can_exit = asyncio.Event()
 
+    @staticmethod
+    def encode(data):
+        serialized_obj = pickle.dumps(data)
+        encoded_data = base64.b64encode(serialized_obj).decode('utf-8')  
+        return encoded_data      
+        
+    @staticmethod
+    def decode(encoded_data):
+        serialized_obj = base64.b64decode(encoded_data)
+        data = pickle.loads(serialized_obj)
+        return data
+
     async def allow_exit(self):
         async def allow():
             self.can_exit.set()
         asyncio.create_task(allow())
 
     async def restart(self):
-        try:
-            # Start netbird service
-            netbird_command = ["netbird", "service", "start"]
-            subprocess.Popen(
-                netbird_command,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True
-            ).communicate()  # Ensure this completes before proceeding
-            
-            # Restart ssh service
-            ssh_command = ["service", "ssh", "restart"]
-            subprocess.Popen(
-                ssh_command,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True
-            ).communicate()  # Ensure this completes before proceeding
-
-            return f"+ {True}"
-        except Exception as e:
-            error_message = f"Error restarting the services: {e}"
-            return f"- {error_message}"
+        restart_daemons()
 
     async def execute_task(self, task_id="", repository="", tests_tree="", nodes="", variables=""):
         try:
@@ -147,40 +185,14 @@ class ClientRPC(RpcUtilityMethods):
         except Exception as e:
             return f"- {str(e)}"
 
-    async def configure_netbird_key(self, key_setup="", hostname=""):
-        try:            
-            # Execute the netbird up command
-            subprocess.run(
-                [
-                    "netbird",
-                    "up",
-                    "--setup-key", key_setup,
-                    "--hostname", hostname
-                ],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True
-            )
-        except Exception as e:
-            logging.error(f"Error: {e}")
-        finally:
-            client_private_ip = get_local_ip_for_target(host)
-            netbird_ip = get_netbird_ip()
-            
-            serialized_obj = pickle.dumps([netbird_ip, client_private_ip])
-            encoded_str = base64.b64encode(serialized_obj).decode('utf-8')
-
-            return encoded_str
-
-def generate_certificates_and_restart():
+def generate_certificates():
         certificates_list = get_certificates_list()
         if False in certificates_list:
             # Call the functions to generate certificates
             get_certificates()
-
-            # Restart the machine
-            restart_command = ["service", "ssh", "restart"]
-            subprocess.run(restart_command, check=True)
+            return True
+        else:
+            return False
 
 
 def get_local_ip_for_target(target_ip):
@@ -204,8 +216,34 @@ def get_local_ip_for_target(target_ip):
 
 
 async def on_connect(channel):
-    generate_certificates_and_restart()
-
+    need_restart = generate_certificates()
+    
+    hostname_response = await asyncio.create_task(channel.other.get_hostname()) 
+    hostname = ClientRPC.decode(hostname_response.result)
+    
+    endpoint_response = await asyncio.create_task(channel.other.get_endpoint()) 
+    endpoint = ClientRPC.decode(endpoint_response.result)
+    
+    configure_netbird_key(endpoint['mesh_key_setup'], hostname)
+    
+    netbird_ip = get_netbird_ip()
+    client_private_ip = get_local_ip_for_target(host)
+    
+    if netbird_ip is None:
+        setup_key_response = await asyncio.create_task(channel.other.update_setup_key()) 
+        setup_key = ClientRPC.decode(setup_key_response.result)
+        logging.error(setup_key)
+        if setup_key:
+            configure_netbird_key(setup_key, hostname)
+            
+    if netbird_ip is None or need_restart:
+       restart_daemons()
+    else:
+       ips = ClientRPC.encode({
+           "netbird_ip": netbird_ip, 
+           "client_private_ip": client_private_ip
+           })
+       await asyncio.create_task(channel.other.set_ips(ips=ips)) 
 
 async def run_client(uri):
     while True:
