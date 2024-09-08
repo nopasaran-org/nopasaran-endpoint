@@ -5,7 +5,7 @@ import logging
 from concurrent.futures import ProcessPoolExecutor
 from multiprocessing import Lock
 
-from tests_tree import TestsTree, download_png_by_name, fetch_png_files_from_github, serialize_log_data
+from tests_tree.tests_tree import TestsTree, download_png_by_name, fetch_png_files_from_github, serialize_log_data
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

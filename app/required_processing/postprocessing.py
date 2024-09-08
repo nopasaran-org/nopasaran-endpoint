@@ -1,6 +1,6 @@
 import os
 import logging
-from iptables_rules import remove_rule_by_name
+from iptables.iptables_helper import remove_rule_by_name
 
 
 # Set up logging

@@ -4,7 +4,7 @@ import sys
 import os 
 import json
 import logging
-from iptables_rules import add_tcp_drop_rule_to_chain_and_get_name
+from iptables.iptables_helper import add_tcp_drop_rule_to_chain_and_get_name
 
 # Load the .env file, but don't override existing environment variables
 dotenv.load_dotenv('/app/resources/config.env', override=False)

@@ -16,7 +16,7 @@ from cryptography.x509.oid import NameOID
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.serialization import Encoding, PrivateFormat, NoEncryption
-from utils import get_api_base_url
+from utils.api_utils import get_api_base_url
 
 # Load the .env file, but don't override existing environment variables
 dotenv.load_dotenv('/app/resources/config.env', override=False)

@@ -13,19 +13,24 @@ def init_publisher():
     # Ensure directories exist
     os.makedirs(inputs_dir, exist_ok=True)
     os.makedirs(results_dir, exist_ok=True)
-
+    
 def publish_task(task_id, repository, tests_tree, nodes, variables):
-    task = {
-        "id": task_id,
-        "repository": repository,
-        "tests_tree": tests_tree,
-        "nodes": nodes,
-        "variables": variables
-    }
-    task_file = os.path.join(inputs_dir, f"task_{task_id}.json")
-    with open(task_file, "w") as file:
-        json.dump(task, file)
-    logging.info(f"Publisher published task: {task}")
+    try:
+        task = {
+            "id": task_id,
+            "repository": repository,
+            "tests_tree": tests_tree,
+            "nodes": nodes,
+            "variables": variables
+        }
+        task_file = os.path.join(inputs_dir, f"task_{task_id}.json")
+        with open(task_file, "w") as file:
+            json.dump(task, file)
+        logging.info(f"Task {task_id} published successfully.")
+    except Exception as e:
+        logging.error(f"Error publishing task: {e}")
+        raise
+
 
 def read_results():
     results_files = [f for f in os.listdir(results_dir) if f.startswith("result_")]

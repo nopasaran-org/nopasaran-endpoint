@@ -32,11 +32,11 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
 RUN curl -fsSL https://pkgs.netbird.io/install.sh | sh
 RUN rm /etc/netbird/config.json
 
-# Create a directory to copy your "resources" folder into
+# Create a directory to copy the app folder into
 WORKDIR /app
 
-# Copy the "resources" folder into the container
-COPY resources /app/resources
+# Copy the app folder into the container
+COPY ./app /app
 
 # Create a virtual environment
 RUN python3 -m venv venv
@@ -46,7 +46,7 @@ ENV PATH="/app/venv/bin:$PATH"
 
 # Update pip and install Python packages from requirements.txt
 RUN python -m pip install --upgrade pip && \
-    python -m pip install -r resources/requirements.txt
+    python -m pip install -r /app/requirements.txt
 
 # Create worker and master users with random passwords of length 20
 RUN useradd -m -s /bin/bash worker && \
@@ -75,12 +75,6 @@ RUN sed -i 's/#Port 22/Port 1963/' /etc/ssh/sshd_config
 # Modify the SSHD configuration file for logging settings
 RUN sed -i 's/#SyslogFacility AUTH/SyslogFacility AUTH/' /etc/ssh/sshd_config && \
     sed -i 's/#LogLevel INFO/LogLevel VERBOSE/' /etc/ssh/sshd_config
-
-# Copy the scripts into the container
-COPY entry.sh /app/entry.sh
-
-# Make the scripts executable
-RUN chmod +x /app/entry.sh
 
 # Run the entry.sh script when the container starts
 CMD ["/app/entry.sh"]
