@@ -1,4 +1,5 @@
 import base64
+import datetime
 import os
 import pickle
 import re
@@ -7,6 +8,7 @@ import secrets
 import threading
 import requests
 import logging
+import random
 
 import pydot
 from PIL import Image, PngImagePlugin
@@ -27,9 +29,9 @@ class TestsTreeNode:
         self.children.append((child, conditions))
 
     def evaluate_test(self, workers, repository, input_values):
-        def evaluate_worker(inputs, node, control_node, repository, results, endpoint_key):
+        def evaluate_worker(inputs, node, control_node, control_port, repository, results, endpoint_key):
             try:
-                execution_logs = execute_test(repository=repository, test=self.test, node=node, control_node=control_node, variables=inputs)
+                execution_logs = execute_test(repository=repository, test=self.test, node=node, control_node=control_node, control_port=control_port, variables=inputs)
                 serialized_result_log = extract_base64(execution_logs)
                 result = deserialize_log_data(serialized_result_log)
                 results[endpoint_key] = result  # Store the result in the shared dictionary
@@ -39,6 +41,7 @@ class TestsTreeNode:
 
         threads = []
         results = {}
+        control_port = str(random.randint(50000, 60000))
 
         for i in range(self.num_workers):
             worker_input = input_values[i] if i < len(input_values) else {}
@@ -46,7 +49,7 @@ class TestsTreeNode:
             endpoint_key = f'Worker_{i+1}'
 
             # Creating a thread for each worker
-            thread = threading.Thread(target=evaluate_worker, args=(worker_input, workers[i], workers[(i+1) % self.num_workers], repository, results, endpoint_key))
+            thread = threading.Thread(target=evaluate_worker, args=(worker_input, workers[i], workers[(i+1) % self.num_workers], control_port, repository, results, endpoint_key))
             threads.append(thread)
 
         # Start all threads
@@ -329,15 +332,20 @@ def download_png_by_name(png_files, file_name):
 
 
 
-def execute_test(repository="", test="", node="", control_node="", variables=""):
-    final_output_directory = secrets.token_hex(6)
+def execute_test(repository="", test="", node="", control_node="", control_port="", variables=""):
+    # Get the current time and format it as hour-minute-second-day-month-year
+    current_time = datetime.datetime.now().strftime("%H-%M-%S-%d-%m-%Y")
+    
+    # Create the final output directory by concatenating node name, current time, and a random hex value
+    final_output_directory = f"{node}-{current_time}-{secrets.token_hex(3)}"
+    
     command = [
         "ansible-playbook",
-        "/ansible/remote_test.yml",
+        "/playbooks/remote_test.yml",
         "-i",
         f"{node}:1963,",
         "--extra-vars",
-        f'{{"github_repo_url":"{repository}", "test_folder":"{test}", "final_output_directory":"{final_output_directory}", "remote_control_channel_end":"{control_node}", "variables":{variables}}}',
+        f'{{"github_repo_url":"{repository}", "test_folder":"{test}", "final_output_directory":"{final_output_directory}", "remote_control_channel_end":"{control_node}", "control_port":"{control_port}", "variables":{variables}}}',
     ]
     subprocess.run(
         command,

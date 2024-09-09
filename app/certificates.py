@@ -16,6 +16,7 @@ from cryptography.x509.oid import NameOID
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.serialization import Encoding, PrivateFormat, NoEncryption
+from config import get_env_variable
 from utils.api_utils import get_api_base_url
 
 # Load the .env file, but don't override existing environment variables
@@ -31,36 +32,12 @@ MASTER = "master"
 
 # Configure the logging module
 logging.basicConfig(format='%(asctime)s - %(levelname)s: %(message)s', datefmt='%Y-%m-%d %H:%M:%S', level=logging.INFO)
-logger = logging.getLogger()
 
 # Get the directory of the current Python file
 current_directory = os.path.dirname(__file__)
 
-# Define the required environment variable names
-required_env_vars = ["ENDPOINT_NAME", "AUTHORIZATION_TOKEN", "ROLE"]
-
-# Initialize a list to store missing environment variables
-missing_vars = []
-
-# Check if all required environment variables exist and are not empty
-for var_name in required_env_vars:
-    var_value = os.environ.get(var_name)
-    if not var_value:
-        missing_vars.append(var_name)
-
-# If any required environment variables are missing, log an error and list them
-if missing_vars:
-    logging.error("The following environment variables are missing or empty:")
-    for var_name in missing_vars:
-        logging.error(f" - {var_name}")
-    sys.exit(1)
-
-# All required environment variables are correctly loaded
-logging.info("All required environment variables are correctly loaded.")
-
-# You can access the values of the environment variables like this:
-ENDPOINT_NAME = os.environ.get("ENDPOINT_NAME")
-AUTHORIZATION_TOKEN = os.environ.get("AUTHORIZATION_TOKEN")
+AUTHORIZATION_TOKEN = get_env_variable('AUTHORIZATION_TOKEN')
+ENDPOINT_NAME = get_env_variable('ENDPOINT_NAME')
 ROLE = os.environ.get("ROLE")
 
 def generate_new_ssh_key(certificate_type, key_size=4096, exponent=65537):
@@ -133,8 +110,8 @@ def retrieve_ssh_ca_certificate(certificate_type):
             # Set the known_hosts file to be readable only by the owner (600)
             os.chmod(known_hosts_path, 0o600)
     else:
-        logger.error(f"Request failed with status code: {response.status_code}")
-        logger.error(f"Error message: {response.text}")
+        logging.error(f"Request failed with status code: {response.status_code}")
+        logging.error(f"Error message: {response.text}")
 
 
 def retrieve_ssh_certificate(certificate_type):
@@ -185,8 +162,8 @@ def retrieve_ssh_certificate(certificate_type):
         else:
             update_sshd_config_host_certificate()
     else:
-        logger.error(f"Request failed with status code: {response.status_code}")
-        logger.error(f"Error message: {response.text}")
+        logging.error(f"Request failed with status code: {response.status_code}")
+        logging.error(f"Error message: {response.text}")
 
 def generate_new_x509_key(key_size=4096, exponent=65537):
     input_path = os.getenv('X509_PATH')
@@ -265,10 +242,10 @@ def retrieve_x509_certificate():
     # Check if the request was successful
     if fqdn_response.status_code == 200:
         fqdn = json_loader.loads(fqdn_response.content.decode()).get("fqdn")
-        logger.info(f"FQDN retrieved: {fqdn}")
+        logging.info(f"FQDN retrieved: {fqdn}")
     else:
-        logger.error(f"Request failed with status code: {fqdn_response.status_code}")
-        logger.error(f"Error message: {fqdn_response.text}")
+        logging.error(f"Request failed with status code: {fqdn_response.status_code}")
+        logging.error(f"Error message: {fqdn_response.text}")
 
     csr = generate_new_x509_csr(common_name=fqdn)
     csr_pem = csr.public_bytes(Encoding.PEM).decode('utf-8')
@@ -283,8 +260,8 @@ def retrieve_x509_certificate():
         save_response_to_file(content, os.getenv('X509_PATH'), os.getenv('X509_FILENAME_CERTIFICATE'))
         create_x509_private_certificate()
     else:
-        logger.error(f"Request failed with status code: {response.status_code}")
-        logger.error(f"Error message: {response.text}")
+        logging.error(f"Request failed with status code: {response.status_code}")
+        logging.error(f"Error message: {response.text}")
 
 
 def create_x509_private_certificate():
@@ -314,7 +291,7 @@ def create_x509_private_certificate():
     with open(private_crt_path, 'w') as private_crt_file:
         private_crt_file.write(private_crt_content)
 
-    logger.info(f"Certificate chain created at {private_crt_path}")
+    logging.info(f"Certificate chain created at {private_crt_path}")
 
 
 
@@ -333,8 +310,8 @@ def retrieve_x509_ca_certificate():
         # Save the CA certificate to the specified output path
         save_response_to_file(response.content, os.getenv('X509_PATH'), os.getenv('X509_FILENAME_CA'))
     else:
-        logger.error(f"Request failed with status code: {response.status_code}")
-        logger.error(f"Error message: {response.text}")
+        logging.error(f"Request failed with status code: {response.status_code}")
+        logging.error(f"Error message: {response.text}")
 
 def update_ssh_client_config(host_type):
     # Retrieve values from the configuration
@@ -504,21 +481,6 @@ def update_sshd_config_host_certificate():
     logging.info(f'HostCertificate line updated or added to {sshd_config_path}')
 
 def get_certificates():
-    # Set the logging level
-    logging_level = getattr(logging, "INFO")
-    logger.setLevel(logging_level)
-
-    # Create a formatter to include timestamps
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s: %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
-
-    # Create a file handler for the log file
-    file_handler = logging.FileHandler("system.log")
-    file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
-
-    # Log a timestamp
-    logger.info("Script started at %s", datetime.datetime.now())
-
     # List of tasks for certificate retrieval
     tasks = []
     with ThreadPoolExecutor(max_workers=5) as executor:
@@ -544,7 +506,7 @@ def get_certificates():
         try:
             task.result()
         except Exception as e:
-            logger.error(f"An error occurred: {str(e)}")
+            logging.error(f"An error occurred: {str(e)}")
             success = False
 
     time.sleep(1)

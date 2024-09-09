@@ -5,7 +5,7 @@ import logging
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-tasks_dir = f"/tmp/tasks"
+tasks_dir = f"/tasks"
 inputs_dir = os.path.join(tasks_dir, "inputs")
 results_dir = os.path.join(tasks_dir, "results")
 

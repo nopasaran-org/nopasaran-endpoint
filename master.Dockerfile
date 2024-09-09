@@ -80,9 +80,8 @@ RUN sed -i 's/#Port 22/Port 1963/' /etc/ssh/sshd_config
 RUN sed -i 's/#SyslogFacility AUTH/SyslogFacility AUTH/' /etc/ssh/sshd_config && \
     sed -i 's/#LogLevel INFO/LogLevel VERBOSE/' /etc/ssh/sshd_config
 
-# Copy your Ansible playbook and inventory files into the container
-COPY /master/playbooks /ansible/
-COPY /master/inventory.ini /ansible/
+# Copy the Ansible playbooks into the container
+COPY /playbooks /playbooks/
 
 # By default, sleep to keep the container running for manual interaction
 CMD ["/app/entry.sh"]

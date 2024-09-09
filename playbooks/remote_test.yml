@@ -27,7 +27,7 @@
           "ROOT_CERTIFICATE": "/x509/ca.pem",
           "PRIVATE_CERTIFICATE": "/x509/private_crt.pem",
           "DESTINATION_IP": "{{ remote_control_channel_end }}",
-          "SERVER_PORT": "1957"
+          "SERVER_PORT": "{{ control_port }}"
         }
         EOF
 
