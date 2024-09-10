@@ -2,7 +2,7 @@ import asyncio
 import logging
 from tasks_publisher import read_results
 
-async def periodic_result_reader(channel, interval=5):
+async def periodic_result_reader(channel, interval=2):
     while True:
         try:
             results = read_results()

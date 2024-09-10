@@ -40,7 +40,19 @@ def start_client(server_host, server_port, data):
             # Send the actual message data
             ssock.sendall(json_data.encode('utf-8'))
 
-            # Receive and print the log file content
-            response = ssock.recv(4096)
+            # First receive the length of the incoming message
+            length_data = ssock.recv(4)
+            if not length_data:
+                raise ConnectionError("Failed to receive data length.")
+            total_length = int.from_bytes(length_data, byteorder='big')
 
-            return response.decode('utf-8')
+            # Now receive the actual data in chunks
+            received_data = b""
+            while len(received_data) < total_length:
+                chunk = ssock.recv(min(4096, total_length - len(received_data)))
+                if not chunk:
+                    break
+                received_data += chunk
+
+            return received_data.decode('utf-8')
+
