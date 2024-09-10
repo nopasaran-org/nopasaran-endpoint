@@ -4,6 +4,7 @@ import os
 import pickle
 import re
 import subprocess
+import json
 import secrets
 import threading
 import requests
@@ -13,6 +14,8 @@ import random
 import pydot
 from PIL import Image, PngImagePlugin
 from io import BytesIO
+
+from playbooks.master import start_client
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -329,48 +332,55 @@ def download_png_by_name(png_files, file_name):
     response = requests.get(png_files[file_name])
     response.raise_for_status()  # Raise an exception for HTTP errors
     return response.content  # Return the binary content of the PNG file
-
-
-
-def execute_test(repository="", test="", node="", control_node="", control_port="", variables=""):
+    
+def execute_test(repository, test, node, control_node, control_port, variables):
     # Get the current time and format it as hour-minute-second-day-month-year
     current_time = datetime.datetime.now().strftime("%H-%M-%S-%d-%m-%Y")
-    
+
     # Create the final output directory by concatenating node name, current time, and a random hex value
     final_output_directory = f"{node}-{current_time}-{secrets.token_hex(3)}"
     
-    command = [
-        "ansible-playbook",
-        "/playbooks/remote_test.yml",
-        "-i",
-        f"{node}:1963,",
-        "--extra-vars",
-        f'{{"github_repo_url":"{repository}", "test_folder":"{test}", "final_output_directory":"{final_output_directory}", "remote_control_channel_end":"{control_node}", "control_port":"{control_port}", "variables":{variables}}}',
-    ]
-    subprocess.run(
-        command,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True
-    )
-
-    # Search for the first matching log file in the specified directory tree
-    log_file_path = next(
-        (
-            os.path.join(root, file)
-            for root, _, files in os.walk(f"/results/{final_output_directory}")
-            for file in files
-            if file.startswith("conf") and file.endswith(".log")
-        ),
-        None
-    )
+    # Define the paths where the results will be saved
+    base_path = f"/tmp/{final_output_directory}"
+    test_full_path = f"{base_path}/{test}"
     
-    if log_file_path:
-        with open(log_file_path, 'r') as log_file:
-            log_content = log_file.read()
+    # Create the required directories for saving results
+    os.makedirs(test_full_path, exist_ok=True)
+
+    # Prepare the data dictionary to send to the worker
+    data = {
+        "repository": repository,
+        "test_folder": test,
+        "control_node": control_node,
+        "variables": variables,
+        "control_port": control_port
+    }
+
+    # Call the start_client function to connect to the worker node and execute the test
+    logging.info(f"Starting the client to connect to the worker node {node} and execute the test for {repository}")
+
+    try:
+        # Use the node (worker server) as the host for the connection
+        log_content = start_client(node, 1957, data)
+    except Exception as e:
+        logging.error(f"An error occurred while executing the test: {e}")
+        return ""
+    
+    # Now save the log file content to the appropriate directory
+    if log_content:
+        # Copy the log to the final results directory
+        final_log_dir = f"/results/{final_output_directory}"
+        os.makedirs(final_log_dir, exist_ok=True)
+        final_log_path = f"{final_log_dir}/conf.log"
+        
+        # Save the log file in the final output directory
+        with open(final_log_path, 'w') as final_log_file:
+            final_log_file.write(log_content)
+        
         return log_content
     else:
-        return ""
+        logging.warning("No log content received.")
+        return ""    
     
 def extract_base64(log_string):
     # Regex pattern to match the base64 encoded string

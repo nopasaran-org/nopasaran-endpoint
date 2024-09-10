@@ -1,7 +1,14 @@
 import os
 import logging
-from iptables.iptables_helper import remove_rule_by_name
+import sys
 
+# Absolute path to the directory containing the app
+app_path = "/app"
+
+# Add the directory to sys.path
+sys.path.append(app_path)
+
+from iptables.iptables_helper import remove_rule_by_name
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

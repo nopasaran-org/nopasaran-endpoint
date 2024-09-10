@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import subprocess
 from services.netbird_service import restart_daemons, configure_netbird_key, get_netbird_ip
 from services.task_service import periodic_result_reader
 from rpc.client_rpc import ClientRPC
@@ -15,6 +16,7 @@ host = get_env_variable('SERVER_HOST')
 port = int(get_env_variable('SERVER_PORT'))
 auth_token = get_env_variable('AUTHORIZATION_TOKEN')
 endpoint_name = get_env_variable('ENDPOINT_NAME')
+role = get_env_variable('ROLE')
 
 async def on_connect(channel):
     # Generate certificates and configure the connection
@@ -49,6 +51,13 @@ async def on_connect(channel):
 
 
 async def run_client(uri):
+    if role == "worker":
+        try:
+            # Execute the worker process
+            result = subprocess.run(["python", "/app/playbooks/worker.py"], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            logging.info(f"Worker process executed successfully: {result.stdout}")
+        except subprocess.CalledProcessError as e:
+            logging.error(f"Worker process failed: {e.stderr}")
     while True:
         try:
             async with WebSocketRpcClient(uri, ClientRPC(), on_connect=[on_connect]) as client:
