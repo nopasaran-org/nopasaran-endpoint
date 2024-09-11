@@ -6,16 +6,12 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # Update and upgrade packages, and install any necessary dependencies
 RUN apt-get update && apt-get upgrade -y && apt-get install -y \
-    sudo \
-    openssh-client \
-    openssh-server \
     iptables \
     python3-pip \
     python3-venv \
     python3-dev \
     curl \
     git \
-    rsync \
     build-essential \
     jq \
     libjpeg-dev \
@@ -48,33 +44,8 @@ ENV PATH="/app/venv/bin:$PATH"
 RUN python -m pip install --upgrade pip && \
     python -m pip install -r /app/requirements.txt
 
-# Create worker and master users with random passwords of length 20
-RUN useradd -m -s /bin/bash worker && \
-    useradd -m -s /bin/bash master && \
-    echo "worker:$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 20 ; echo '')" | chpasswd && \
-    echo "master:$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 20 ; echo '')" | chpasswd
-
-# Add the master to the sudo group
-RUN usermod -aG sudo master
-
-# Configure sudoers to not require a password for the master
-RUN echo "master ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
-
-# Create a directory for SSH host keys
-RUN mkdir /var/run/sshd
-
 # Create a directory for X509 components
 RUN mkdir /x509
-
-# Set root password (change this for production use)
-RUN echo 'root:your_password' | chpasswd
-
-# Change SSH port to 1963 in sshd_config
-RUN sed -i 's/#Port 22/Port 1963/' /etc/ssh/sshd_config
-
-# Modify the SSHD configuration file for logging settings
-RUN sed -i 's/#SyslogFacility AUTH/SyslogFacility AUTH/' /etc/ssh/sshd_config && \
-    sed -i 's/#LogLevel INFO/LogLevel VERBOSE/' /etc/ssh/sshd_config
 
 # Run the entry.sh script when the container starts
 CMD ["/app/entry.sh"]
