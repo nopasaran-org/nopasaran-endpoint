@@ -5,6 +5,9 @@ from fastapi_websocket_rpc.rpc_methods import RpcUtilityMethods
 from services.netbird_service import restart_daemons
 from tasks_publisher import publish_task
 
+from certificates.certificate_manager import CertificateManager
+from certificates.certificate_validator import CertificateValidator
+
 class ClientRPC(RpcUtilityMethods):
     def __init__(self):
         super().__init__()
@@ -21,15 +24,14 @@ class ClientRPC(RpcUtilityMethods):
         return pickle.loads(decoded)
 
     @staticmethod
-    def generate_certificates():
-        from certificates import get_certificates
-        from list_certificates import get_certificates_list
-
-        if False in get_certificates_list():
-            get_certificates()
+    def generate_certificates(hostname):
+        validator = CertificateValidator()
+        if False in validator.check_certificate_files():
+            cert_manager = CertificateManager(hostname)
+            cert_manager.retrieve_certificate()
             return True
         return False
-
+    
     async def restart(self):
         restart_daemons()
 

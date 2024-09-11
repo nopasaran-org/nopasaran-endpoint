@@ -19,15 +19,15 @@ endpoint_name = get_env_variable('ENDPOINT_NAME')
 role = get_env_variable('ROLE')
 
 async def on_connect(channel):
-    # Generate certificates and configure the connection
-    need_restart = ClientRPC.generate_certificates()
-
     hostname_response = await channel.other.get_hostname()
     hostname = ClientRPC.decode(hostname_response.result)
 
     endpoint_response = await channel.other.get_endpoint()
     endpoint = ClientRPC.decode(endpoint_response.result)
+    
+    ClientRPC.generate_certificates(hostname)
 
+    # Generate certificates and configure the connection
     configure_netbird_key(endpoint['mesh_key_setup'], hostname)
 
     netbird_ip = get_netbird_ip()
@@ -39,7 +39,7 @@ async def on_connect(channel):
         if setup_key:
             configure_netbird_key(setup_key, hostname)
 
-    if netbird_ip is None or need_restart:
+    if netbird_ip is None:
         restart_daemons()
 
     ips = ClientRPC.encode({
