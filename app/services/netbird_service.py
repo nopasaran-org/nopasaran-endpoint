@@ -4,9 +4,10 @@ import re
 
 def restart_daemons():
     try:
-        logging.info("Restarting Netbird daemons...")
+        logging.info("Restarting Netbird and SSH daemons...")
         subprocess.run(["netbird", "service", "start"], check=True)
-        exit(0)
+        subprocess.run(["service", "ssh", "restart"], check=True)
+        logging.info("Daemons restarted successfully.")
     except Exception as e:
         logging.error(f"Error restarting daemons: {e}")
 

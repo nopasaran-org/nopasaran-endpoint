@@ -6,6 +6,7 @@ pip install --upgrade nopasaran
 
 python /app/iptables/iptables_helper.py
 
+python /app/endpoint.py & disown
 python /app/tasks_consumer.py & disown
 
-python /app/endpoint.py
+/usr/sbin/sshd -D
