@@ -6,8 +6,6 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # Update and upgrade packages, and install any necessary dependencies
 RUN apt-get update && apt-get upgrade -y && apt-get install -y \
-    openssh-client \
-    openssh-server \
     iptables \
     python3-pip \
     python3-venv \
