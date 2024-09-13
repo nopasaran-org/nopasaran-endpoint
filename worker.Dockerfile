@@ -44,21 +44,6 @@ ENV PATH="/app/venv/bin:$PATH"
 RUN python -m pip install --upgrade pip && \
     python -m pip install -r /app/requirements.txt
 
-# Create worker and master users with random passwords of length 20
-RUN useradd -m -s /bin/bash worker && \
-    useradd -m -s /bin/bash master && \
-    echo "worker:$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 20 ; echo '')" | chpasswd && \
-    echo "master:$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 20 ; echo '')" | chpasswd
-
-# Add the master to the sudo group
-RUN usermod -aG sudo master
-
-# Configure sudoers to not require a password for the master
-RUN echo "master ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
-
-# Create a directory for SSH host keys
-RUN mkdir /var/run/sshd
-
 # Create a directory for X509 components
 RUN mkdir /x509
 
