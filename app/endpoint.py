@@ -48,9 +48,7 @@ async def on_connect(channel):
     })
 
     await channel.other.set_ips(ips=ips)
-
-
-async def run_client(uri):
+    
     if role == "worker":
         try:
             # Execute the worker process
@@ -58,6 +56,9 @@ async def run_client(uri):
             logging.info(f"Worker process executed successfully: {result.stdout}")
         except subprocess.CalledProcessError as e:
             logging.error(f"Worker process failed: {e.stderr}")
+
+
+async def run_client(uri):
     while True:
         try:
             async with WebSocketRpcClient(uri, ClientRPC(), on_connect=[on_connect]) as client:

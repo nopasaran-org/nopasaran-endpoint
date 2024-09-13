@@ -39,15 +39,25 @@ domain_pattern = re.compile(rf".*?\..*?\.master\.{re.escape(domain_name)}")
 def validate_client_certificate(cert):
     subject = dict(x[0] for x in cert.get('subject', []))
     cn = subject.get('commonName')
+    logging.debug(f"Validating CN: {cn}")
+    
     if cn and domain_pattern.match(cn):
+        logging.debug(f"CN {cn} matches domain pattern")
         return True
+    else:
+        logging.debug(f"CN {cn} does not match domain pattern")
+    
     san = cert.get('subjectAltName', [])
     for name_type, san_value in san:
+        logging.debug(f"Validating SAN: {san_value}")
         if name_type == 'DNS' and domain_pattern.match(san_value):
+            logging.debug(f"SAN {san_value} matches domain pattern")
             return True
+    
+    logging.debug(f"Client certificate validation failed")
     return False
 
-# Command execution logic
+# Command execution logic (unchanged)
 def handle_client(conn):
     try:
         # Receive the length of the message first
@@ -129,6 +139,7 @@ def handle_client(conn):
 
 # Daemonize the process
 def daemonize():
+    logging.info("Daemonizing the server process")
     if os.fork() > 0:
         sys.exit(0)  # Exit parent process
 
@@ -144,9 +155,12 @@ def daemonize():
     with open('/dev/null', 'a+') as devnull:
         os.dup2(devnull.fileno(), sys.stdout.fileno())
         os.dup2(devnull.fileno(), sys.stderr.fileno())
+    
+    logging.info("Server daemonized successfully")
 
 # Setup SSL server
 def start_server():
+    logging.info("Starting SSL server setup")
     context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
     context.verify_mode = ssl.CERT_REQUIRED
     context.load_cert_chain(certfile=SERVER_CERT, keyfile=SERVER_KEY)
@@ -158,22 +172,31 @@ def start_server():
         logging.info(f"Server listening on {HOST}:{PORT}")
         with context.wrap_socket(sock, server_side=True) as ssock:
             while True:
-                client_socket, addr = ssock.accept()
-                client_cert = client_socket.getpeercert()
-                if not validate_client_certificate(client_cert):
-                    logging.debug(f"Client {addr} failed certificate validation")
-                    client_socket.close()
-                    continue
+                logging.debug("Waiting for a client connection")
+                try:
+                    client_socket, addr = ssock.accept()
+                    logging.info(f"Accepted connection from {addr}")
 
-                logging.info(f"Connection established with {addr}")
+                    # Validate the client certificate
+                    client_cert = client_socket.getpeercert()
+                    if not validate_client_certificate(client_cert):
+                        logging.warning(f"Client {addr} failed certificate validation")
+                        client_socket.close()  # Close connection and continue serving other clients
+                        continue
 
-                pid = os.fork()  # Fork the process to handle the client
-                if pid == 0:  # Child process
-                    ssock.close()  # Child doesn't need the listening socket
-                    handle_client(client_socket)
-                    sys.exit(0)  # Exit after handling the client
-                else:
-                    client_socket.close()  # Parent closes the connected socket
+                    logging.info(f"Client {addr} passed certificate validation")
+
+                    pid = os.fork()  # Fork the process to handle the client
+                    if pid == 0:  # Child process
+                        logging.debug(f"Forked child process for {addr}, PID: {os.getpid()}")
+                        ssock.close()  # Child doesn't need the listening socket
+                        handle_client(client_socket)
+                        sys.exit(0)  # Exit after handling the client
+                    else:
+                        logging.debug(f"Forked child process with PID {pid} to handle {addr}")
+                        client_socket.close()  # Parent closes the connected socket
+                except Exception as e:
+                    logging.error(f"Error handling connection: {e}")
 
 if __name__ == "__main__":
     daemonize()  # Daemonize the server
