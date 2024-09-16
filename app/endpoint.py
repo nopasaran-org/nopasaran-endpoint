@@ -56,6 +56,13 @@ async def on_connect(channel):
             logging.info(f"Worker process executed successfully: {result.stdout}")
         except subprocess.CalledProcessError as e:
             logging.error(f"Worker process failed: {e.stderr}")
+    else:
+        try:
+            # Execute the signaling server process
+            result = subprocess.run(["python", "/app/playbooks/signaling_server.py"], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            logging.info(f"Signaling server process executed successfully: {result.stdout}")
+        except subprocess.CalledProcessError as e:
+            logging.error(f"Signaling server process failed: {e.stderr}")        
 
 
 async def run_client(uri):

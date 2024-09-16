@@ -2,6 +2,8 @@ import json
 import os
 import logging
 
+from services.netbird_service import get_netbird_ip
+
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -15,6 +17,9 @@ def init_publisher():
     os.makedirs(results_dir, exist_ok=True)
     
 def publish_task(task_id, repository, tests_tree, nodes, variables):
+    variables['id'] = task_id
+    variables['signaling-server'] = get_netbird_ip()
+    variables['signaling-port'] = 1963
     try:
         task = {
             "id": task_id,
