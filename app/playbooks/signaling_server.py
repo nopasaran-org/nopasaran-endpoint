@@ -1,6 +1,5 @@
 import socket
 import threading
-import time
 import json
 import logging
 import os
@@ -25,6 +24,7 @@ class MessageType(Enum):
 
 # Shared state with a timeout and cleanup mechanism
 state = {}
+lock = threading.Lock()
 
 def handle_client(client_socket, addr):
     global state
@@ -178,11 +178,6 @@ def start_server(host='0.0.0.0', port=1963):
     server.bind((host, port))
     server.listen(5)
     logging.info(f"[*] Listening on {host}:{port}")
-
-    # Start cleanup daemon thread
-    cleanup_thread = threading.Thread(target=clean_state)
-    cleanup_thread.daemon = True
-    cleanup_thread.start()
 
     while True:
         client_socket, addr = server.accept()
