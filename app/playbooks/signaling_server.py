@@ -7,7 +7,7 @@ import os
 import sys
 import signal
 from enum import Enum
-from datetime import datetime, timedelta
+from datetime import datetime
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -25,23 +25,6 @@ class MessageType(Enum):
 
 # Shared state with a timeout and cleanup mechanism
 state = {}
-TIMEOUT = 10  # Timeout for connection and listen logic in seconds
-CLEANUP_INTERVAL = 60  # Time to clean up old connections in seconds
-lock = threading.Lock()
-
-def clean_state():
-    """Cleans up client states that have not been active for CLEANUP_INTERVAL seconds."""
-    global state
-    while True:
-        time.sleep(10)  # Run cleanup every 10 seconds
-        with lock:
-            to_remove = []
-            for client_id, data in state.items():
-                if datetime.now() > data['last_updated'] + timedelta(seconds=CLEANUP_INTERVAL):
-                    to_remove.append(client_id)
-            for client_id in to_remove:
-                del state[client_id]
-                logging.info(f"Cleaned up state for {client_id}")
 
 def handle_client(client_socket, addr):
     global state
