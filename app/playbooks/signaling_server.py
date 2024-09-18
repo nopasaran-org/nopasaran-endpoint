@@ -1,12 +1,14 @@
 import socket
 import threading
+import time
 import json
 import logging
 import os
 import sys
 import signal
 from enum import Enum
-from datetime import datetime
+from datetime import datetime, timedelta
+import fcntl
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -22,13 +24,61 @@ class MessageType(Enum):
     STOP = "stop"
     ERROR = "error"
 
-# Shared state with a timeout and cleanup mechanism
-state = {}
-lock = threading.Lock()
+# Directory to store state files
+STATE_DIR = "/var/run/signaling_server_states/"
+CLEANUP_INTERVAL = 60  # Time to clean up old connections in seconds
+
+def ensure_state_dir():
+    """Ensure the state directory exists."""
+    os.makedirs(STATE_DIR, exist_ok=True)
+
+def get_state_file_path(client_id):
+    """Get the file path for a client's state file."""
+    return os.path.join(STATE_DIR, f"{client_id}.json")
+
+def load_state(client_id):
+    """Load state from file for a specific client."""
+    file_path = get_state_file_path(client_id)
+    try:
+        if os.path.exists(file_path):
+            with open(file_path, 'r') as f:
+                fcntl.flock(f, fcntl.LOCK_SH)
+                state = json.load(f)
+                fcntl.flock(f, fcntl.LOCK_UN)
+            return state
+        return None
+    except Exception as e:
+        logging.error(f"Error loading state for client {client_id}: {e}")
+        return None
+
+def save_state(client_id, state):
+    """Save state to file for a specific client."""
+    file_path = get_state_file_path(client_id)
+    try:
+        with open(file_path, 'w') as f:
+            fcntl.flock(f, fcntl.LOCK_EX)
+            json.dump(state, f)
+            fcntl.flock(f, fcntl.LOCK_UN)
+    except Exception as e:
+        logging.error(f"Error saving state for client {client_id}: {e}")
+
+def clean_state():
+    """Cleans up client states that have not been active for CLEANUP_INTERVAL seconds."""
+    while True:
+        time.sleep(10)  # Run cleanup every 10 seconds
+        try:
+            now = datetime.now()
+            for filename in os.listdir(STATE_DIR):
+                file_path = os.path.join(STATE_DIR, filename)
+                if os.path.isfile(file_path):
+                    mod_time = datetime.fromtimestamp(os.path.getmtime(file_path))
+                    if now - mod_time > timedelta(seconds=CLEANUP_INTERVAL):
+                        os.remove(file_path)
+                        logging.info(f"Cleaned up state file for {filename}")
+        except Exception as e:
+            logging.error(f"Error during state cleanup: {e}")
 
 def handle_client(client_socket, addr):
-    global state
-
     while True:
         try:
             message = client_socket.recv(1024).decode().strip()
@@ -39,132 +89,118 @@ def handle_client(client_socket, addr):
             client_id = data['id']
             command = MessageType(data['type'])
 
-            with lock:
-                if client_id not in state:
-                    state[client_id] = {
-                        'ready_connection': False, 
-                        'ready_listen': False, 
-                        'listening': False, 
-                        'stop_signals': 0,
-                        'client_a': None,  # Initiator (Client A)
-                        'client_b': None,  # Listener (Client B)
-                        'last_updated': datetime.now()
-                    }
-
+            state = load_state(client_id)
+            if state is None:
+                state = {
+                    'ready_connection': False, 
+                    'ready_listen': False, 
+                    'listening': False, 
+                    'stop_signals': 0,
+                    'last_updated': datetime.now().isoformat()
+                }
+            
             logging.info(f"Received {command.value} from {addr} for client_id {client_id}")
 
             if command == MessageType.SIGNAL_READY_CONNECTION:
-                with lock:
-                    state[client_id]['ready_connection'] = True
-                    state[client_id]['client_a'] = client_socket  # Track Client A
-                    state[client_id]['last_updated'] = datetime.now()
-                check_for_connection(client_id)
+                state['ready_connection'] = True
+                state['last_updated'] = datetime.now().isoformat()
+                save_state(client_id, state)
+                check_for_connection(client_id, client_socket)
 
             elif command == MessageType.SIGNAL_READY_LISTEN:
-                with lock:
-                    state[client_id]['ready_listen'] = True
-                    state[client_id]['client_b'] = client_socket  # Track Client B
-                    state[client_id]['last_updated'] = datetime.now()
-                check_for_connection(client_id)
+                state['ready_listen'] = True
+                state['last_updated'] = datetime.now().isoformat()
+                save_state(client_id, state)
+                check_for_connection(client_id, client_socket)
 
             elif command == MessageType.SIGNAL_LISTENING:
-                with lock:
-                    state[client_id]['listening'] = True
-                    state[client_id]['last_updated'] = datetime.now()
-                # Send an OK response to signal_listening
+                state['listening'] = True
+                state['last_updated'] = datetime.now().isoformat()
+                save_state(client_id, state)
                 client_socket.send(json.dumps({'type': 'OK', 'id': client_id}).encode())
                 logging.info(f"Sent OK to Client B for LISTENING confirmation for {client_id}")
-                send_connect(client_id)
+                send_connect(client_id, client_socket)
 
             elif command == MessageType.SIGNAL_READY_STOP:
-                with lock:
-                    state[client_id]['stop_signals'] += 1
-                    state[client_id]['last_updated'] = datetime.now()
-                check_for_stop(client_id)
+                state['stop_signals'] += 1
+                state['last_updated'] = datetime.now().isoformat()
+                save_state(client_id, state)
+                check_for_stop(client_id, client_socket)
 
         except (socket.error, json.JSONDecodeError) as e:
             logging.error(f"Error handling client {addr}: {str(e)}")
             break
 
-def check_for_connection(client_id):
-    global state
-    with lock:
-        if state[client_id]['ready_connection'] and state[client_id]['ready_listen']:
-            # Send LISTEN to Client B (listener)
-            if state[client_id]['client_b']:
-                try:
-                    state[client_id]['client_b'].send(json.dumps({'type': MessageType.LISTEN.value, 'id': client_id}).encode())
-                    logging.info(f"Sent LISTEN to Client B for {client_id}")
-                except:
-                    logging.error(f"Failed to send LISTEN to Client B for {client_id}")
-            state[client_id]['last_updated'] = datetime.now()
+    client_socket.close()
 
-def send_connect(client_id):
-    global state
-    with lock:
-        if state[client_id]['listening'] and state[client_id]['ready_connection']:
-            # Send CONNECT to Client A (initiator)
-            if state[client_id]['client_a']:
-                try:
-                    state[client_id]['client_a'].send(json.dumps({'type': MessageType.CONNECT.value, 'id': client_id}).encode())
-                    logging.info(f"Sent CONNECT to Client A for {client_id}")
-                except:
-                    logging.error(f"Failed to send CONNECT to Client A for {client_id}")
-            state[client_id]['last_updated'] = datetime.now()
+def check_for_connection(client_id, client_socket, timeout=10):
+    """Check if both ready_connection and ready_listen are True, with a timeout."""
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        state = load_state(client_id)
+        if state and state['ready_connection'] and state['ready_listen']:
+            try:
+                client_socket.send(json.dumps({'type': MessageType.LISTEN.value, 'id': client_id}).encode())
+                logging.info(f"Sent LISTEN for {client_id}")
+            except Exception as e:
+                logging.error(f"Failed to send LISTEN for {client_id}: {e}")
+            state['last_updated'] = datetime.now().isoformat()
+            save_state(client_id, state)
+            return
+        time.sleep(0.1)
 
-def check_for_stop(client_id):
-    global state
-    with lock:
-        if state[client_id]['stop_signals'] >= 2:
-            # Send STOP to both Client A and Client B after receiving both stop signals
-            if state[client_id]['client_a']:
-                try:
-                    state[client_id]['client_a'].send(json.dumps({'type': MessageType.STOP.value, 'id': client_id}).encode())
-                    logging.info(f"Sent STOP to Client A for {client_id}")
-                except:
-                    logging.error(f"Failed to send STOP to Client A for {client_id}")
-            if state[client_id]['client_b']:
-                try:
-                    state[client_id]['client_b'].send(json.dumps({'type': MessageType.STOP.value, 'id': client_id}).encode())
-                    logging.info(f"Sent STOP to Client B for {client_id}")
-                except:
-                    logging.error(f"Failed to send STOP to Client B for {client_id}")
-            state[client_id]['stop_signals'] = 0  # Reset for this session
-            state[client_id]['last_updated'] = datetime.now()
+    logging.error(f"Timeout waiting for connection readiness for client {client_id}")
+
+def send_connect(client_id, client_socket):
+    state = load_state(client_id)
+    if state and state['listening'] and state['ready_connection']:
+        try:
+            client_socket.send(json.dumps({'type': MessageType.CONNECT.value, 'id': client_id}).encode())
+            logging.info(f"Sent CONNECT for {client_id}")
+        except Exception as e:
+            logging.error(f"Failed to send CONNECT for {client_id}: {e}")
+        state['last_updated'] = datetime.now().isoformat()
+        save_state(client_id, state)
+
+def check_for_stop(client_id, client_socket, timeout=10):
+    """Check if both stop signals have been received, with a timeout."""
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        state = load_state(client_id)
+        if state and state['stop_signals'] >= 2:
+            try:
+                client_socket.send(json.dumps({'type': MessageType.STOP.value, 'id': client_id}).encode())
+                logging.info(f"Sent STOP for {client_id}")
+            except Exception as e:
+                logging.error(f"Failed to send STOP for {client_id}: {e}")
+            state['last_updated'] = datetime.now().isoformat()
+            save_state(client_id, state)
+            return
+        time.sleep(0.1)
+
+    logging.error(f"Timeout waiting for stop signals for client {client_id}")
+
 
 def daemonize():
     """Daemonizes the process."""
     try:
-        # Fork the first time
         pid = os.fork()
         if pid > 0:
-            sys.exit(0)  # Exit the parent process
-
-        # Create a new session and set the process group
-        if os.setsid() == -1:
-            logging.error("Failed to create a new session.")
-            sys.exit(1)
-
-        # Fork the second time
+            sys.exit(0)
+        os.setsid()
         pid = os.fork()
         if pid > 0:
-            sys.exit(0)  # Exit the first child process
-
-        # Change the working directory to root
+            sys.exit(0)
         os.chdir('/')
-
-        # Reset file mode creation mask
         os.umask(0)
-
-        # Redirect standard file descriptors
-        with open('/dev/null', 'r') as f:
-            os.dup2(f.fileno(), sys.stdin.fileno())
-        with open('/dev/null', 'a+') as f:
-            os.dup2(f.fileno(), sys.stdout.fileno())
-            os.dup2(f.fileno(), sys.stderr.fileno())
-
+        
+        # Redirect standard file descriptors to /dev/null
+        with open(os.devnull, 'r') as nullin, open(os.devnull, 'w') as nullout, open(os.devnull, 'w') as nullerr:
+            os.dup2(nullin.fileno(), sys.stdin.fileno())
+            os.dup2(nullout.fileno(), sys.stdout.fileno())
+            os.dup2(nullerr.fileno(), sys.stderr.fileno())
+        
         logging.info("Daemon process started successfully.")
-
     except Exception as e:
         logging.error(f"Error during daemonization: {e}")
         sys.exit(1)
@@ -174,24 +210,29 @@ def signal_handler(signum, frame):
     sys.exit(0)
 
 def start_server(host='0.0.0.0', port=1963):
+    ensure_state_dir()
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.bind((host, port))
-    server.listen(5)
+    server.listen(128)
     logging.info(f"[*] Listening on {host}:{port}")
 
+    cleanup_thread = threading.Thread(target=clean_state)
+    cleanup_thread.daemon = True
+    cleanup_thread.start()
+
     while True:
-        client_socket, addr = server.accept()
-        logging.info(f"Accepted connection from {addr[0]}:{addr[1]}")
-        client_handler = threading.Thread(target=handle_client, args=(client_socket, addr))
-        client_handler.daemon = True  # Make thread a daemon
-        client_handler.start()
+        try:
+            client_socket, addr = server.accept()
+            logging.info(f"Accepted connection from {addr[0]}:{addr[1]}")
+            client_handler = threading.Thread(target=handle_client, args=(client_socket, addr))
+            client_handler.daemon = True
+            client_handler.start()
+        except Exception as e:
+            logging.error(f"Error accepting connection: {e}")
 
 if __name__ == "__main__":
     signal.signal(signal.SIGTERM, signal_handler)
     signal.signal(signal.SIGINT, signal_handler)
     
-    # Daemonize the process
     daemonize()
-
-    # Start the server
     start_server()
