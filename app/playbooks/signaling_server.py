@@ -11,7 +11,9 @@ from datetime import datetime, timedelta
 import fcntl
 
 # Set up logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', 
+                    filename="/var/log/signaling_server.log",
+                    filemode="a")
 
 # Define message types using enumeration for better readability and security
 class MessageType(Enum):
@@ -94,7 +96,7 @@ def handle_client(client_socket, addr):
                 state = {
                     'ready_connection': False, 
                     'ready_listen': False, 
-                    'listening': False, 
+                    'listening': False,  # Initialize listening as False
                     'stop_signals': 0,
                     'last_updated': datetime.now().isoformat()
                 }
@@ -105,27 +107,27 @@ def handle_client(client_socket, addr):
                 state['ready_connection'] = True
                 state['last_updated'] = datetime.now().isoformat()
                 save_state(client_id, state)
-                check_for_connection(client_id, client_socket)
+                # Wait until listening is True before sending connect
+                wait_for_listening(client_id, client_socket)
 
             elif command == MessageType.SIGNAL_READY_LISTEN:
                 state['ready_listen'] = True
                 state['last_updated'] = datetime.now().isoformat()
                 save_state(client_id, state)
-                check_for_connection(client_id, client_socket)
+                wait_for_connection(client_id, client_socket)
 
             elif command == MessageType.SIGNAL_LISTENING:
-                state['listening'] = True
+                state['listening'] = True  # Set listening to True
                 state['last_updated'] = datetime.now().isoformat()
                 save_state(client_id, state)
                 client_socket.send(json.dumps({'type': 'OK', 'id': client_id}).encode())
                 logging.info(f"Sent OK to Client B for LISTENING confirmation for {client_id}")
-                send_connect(client_id, client_socket)
 
             elif command == MessageType.SIGNAL_READY_STOP:
                 state['stop_signals'] += 1
                 state['last_updated'] = datetime.now().isoformat()
                 save_state(client_id, state)
-                check_for_stop(client_id, client_socket)
+                wait_for_stop(client_id, client_socket)
 
         except (socket.error, json.JSONDecodeError) as e:
             logging.error(f"Error handling client {addr}: {str(e)}")
@@ -133,7 +135,19 @@ def handle_client(client_socket, addr):
 
     client_socket.close()
 
-def check_for_connection(client_id, client_socket, timeout=10):
+def wait_for_listening(client_id, client_socket, timeout=10):
+    """Wait until listening is True before sending connect."""
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        state = load_state(client_id)
+        if state and state['listening']:
+            send_connect(client_id, client_socket)
+            return
+        time.sleep(0.1)
+
+    logging.error(f"Timeout waiting for listening for client {client_id}")
+
+def wait_for_connection(client_id, client_socket, timeout=10):
     """Check if both ready_connection and ready_listen are True, with a timeout."""
     start_time = time.time()
     while time.time() - start_time < timeout:
@@ -162,7 +176,7 @@ def send_connect(client_id, client_socket):
         state['last_updated'] = datetime.now().isoformat()
         save_state(client_id, state)
 
-def check_for_stop(client_id, client_socket, timeout=10):
+def wait_for_stop(client_id, client_socket, timeout=10):
     """Check if both stop signals have been received, with a timeout."""
     start_time = time.time()
     while time.time() - start_time < timeout:
