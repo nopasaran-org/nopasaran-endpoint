@@ -1,6 +1,7 @@
 requests
 cryptography
 fastapi_websocket_rpc
+uvicorn
 python-dotenv
 pydot
 pillow
