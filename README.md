@@ -55,7 +55,7 @@ services:
 - `ENDPOINT_NAME`: Unique identifier for your endpoint.
 - `AUTHORIZATION_TOKEN`: The authorization token provided by the coordinator.
 - `ROLE`: Set this to `master` if this is a master node, or `worker` if this is a worker node.
-- `GITHUB_TOKEN`: _(Required for master nodes)_ A token to prevent rate limiting when accessing the GitHub API.
+- `GITHUB_TOKEN`: _(Optional for master nodes)_ A token to prevent rate limiting when accessing the GitHub API.
 - `SERVER_HOST`: (Optional) Host address of a custom coordinator (e.g., `127.0.0.1` for localhost).
 - `SERVER_PORT`: (Optional) Port used by the custom coordinator (default is `8000`).
 
