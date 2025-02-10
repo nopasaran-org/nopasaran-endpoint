@@ -315,12 +315,20 @@ class TestsTree:
         return None
 
 # Function to fetch the list of PNG files from the GitHub repository
-def fetch_png_files_from_github(repo_url):
+def fetch_png_files_from_github(repo_url, api_token=None):
     api_url = repo_url.replace("github.com", "api.github.com/repos") + "/contents"
-    response = requests.get(api_url)
+    
+    headers = {}
+    if api_token:
+        headers['Authorization'] = f'token {api_token}'  # Add the token to the header if provided
+    
+    response = requests.get(api_url, headers=headers)
     response.raise_for_status()  # Raise an exception for HTTP errors
     files = response.json()
+    
+    # Filter and return the PNG files with their download URLs
     png_files = {file['name']: file['download_url'] for file in files if file['name'].endswith('.png')}
+    
     return png_files
 
 # Function to download the content of a specific PNG file by name

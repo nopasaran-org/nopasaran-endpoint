@@ -21,7 +21,8 @@ os.makedirs(results_dir, exist_ok=True)
 lock = Lock()  # Lock to ensure thread-safe file operations
 
 def execute_tests_tree(data):
-    tests_tree_files = fetch_png_files_from_github(data["repository"])
+    api_token = os.getenv('GITHUB_TOKEN', None)
+    tests_tree_files = fetch_png_files_from_github(data["repository"], api_token)
     tests_tree_content = download_png_by_name(tests_tree_files, data["tests_tree"])
     tree = TestsTree(workers=data["nodes"])
     tree.load_from_png_content(tests_tree_content)
