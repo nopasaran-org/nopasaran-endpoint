@@ -116,19 +116,24 @@ jobs:
         run: |
           docker manifest create benilies/nopasaran-worker:${{ github.sha }} \
             --amend benilies/nopasaran-worker:${{ github.sha }}-amd64 \
-            --amend benilies/nopasaran-worker:${{ github.sha }}-arm64
+            --amend benilies/nopasaran-worker:${{ github.sha }}-arm64 \
+            --amend benilies/nopasaran-worker:${{ github.sha }}-armv8
           docker manifest push benilies/nopasaran-worker:${{ github.sha }}
           docker manifest create benilies/nopasaran-worker:latest \
             --amend benilies/nopasaran-worker:amd64-latest \
-            --amend benilies/nopasaran-worker:arm64-latest
+            --amend benilies/nopasaran-worker:arm64-latest \
+            --amend benilies/nopasaran-worker:armv8-latest
           docker manifest push benilies/nopasaran-worker:latest
+
       - name: Create and push multi-platform manifest for master
         run: |
           docker manifest create benilies/nopasaran-master:${{ github.sha }} \
             --amend benilies/nopasaran-master:${{ github.sha }}-amd64 \
-            --amend benilies/nopasaran-master:${{ github.sha }}-arm64
+            --amend benilies/nopasaran-master:${{ github.sha }}-arm64 \
+            --amend benilies/nopasaran-master:${{ github.sha }}-armv8
           docker manifest push benilies/nopasaran-master:${{ github.sha }}
           docker manifest create benilies/nopasaran-master:latest \
             --amend benilies/nopasaran-master:amd64-latest \
-            --amend benilies/nopasaran-master:arm64-latest
+            --amend benilies/nopasaran-master:arm64-latest \
+            --amend benilies/nopasaran-master:armv8-latest
           docker manifest push benilies/nopasaran-master:latest
