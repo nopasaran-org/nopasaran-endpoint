@@ -83,7 +83,7 @@ def task_monitor(executor):
             # Submit tasks for parallel processing using ProcessPoolExecutor
             executor.submit(process_task, task_file)
 
-        time.sleep(3)  # Adjust the sleep duration as needed
+        time.sleep(0.2)  # Adjust the sleep duration as needed
 
 if __name__ == "__main__":
     # Create the ProcessPoolExecutor in the main process
